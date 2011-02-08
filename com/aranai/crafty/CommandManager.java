@@ -39,6 +39,9 @@ public class CommandManager {
 				this.restart();
 				return;
 			}
+			
+			// Bad command
+			c.logMsg("Unknown command.");
 		}
 		else
 		{

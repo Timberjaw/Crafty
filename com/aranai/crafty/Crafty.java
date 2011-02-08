@@ -63,7 +63,7 @@ public class Crafty extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final String Version = "v0.5";
+	private static final String Version = "v0.6";
 	
 	private static Crafty instance;
 	
@@ -161,7 +161,7 @@ public class Crafty extends JFrame {
 		
 		// Set frame options
 		this.setTitle("Crafty "+Crafty.Version);
-		this.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/icon.png")));
+		this.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/icon.png")));
 		this.setSize(850, 500);
 		this.setMinimumSize(new Dimension(600,480));
 		this.addWindowListener(new CraftyWindowListener(this));
@@ -207,7 +207,7 @@ public class Crafty extends JFrame {
 		// Add stop button
 		JButton button = new JButton("Stop & Exit");
 		button.setIconTextGap(10);
-		button.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/shutdown.png"))));
+		button.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/shutdown.png"))));
 		button.setHorizontalAlignment(SwingConstants.LEFT);
 		button.setHorizontalTextPosition(SwingConstants.RIGHT);
 		button.setMargin(new Insets(5,5,5,5));
@@ -247,42 +247,42 @@ public class Crafty extends JFrame {
 	    // Kick
 	    menuItem = new JMenuItem(Crafty.UserActions.KICK);
 	    menuItem.setFont(menuFont);
-	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/kick.png"))));
+	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/kick.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // Ban
 	    menuItem = new JMenuItem(Crafty.UserActions.BAN);
 	    menuItem.setFont(menuFont);
-	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/ban.png"))));
+	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/ban.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // Ban IP
 	    menuItem = new JMenuItem(Crafty.UserActions.BANIP);
 	    menuItem.setFont(menuFont);
-	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/ban.png"))));
+	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/ban.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // Get IP
 	    menuItem = new JMenuItem(Crafty.UserActions.GETIP);
 	    menuItem.setFont(menuFont);
-	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/getip.png"))));
+	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/getip.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // Op
 	    menuItem = new JMenuItem(Crafty.UserActions.OP);
 	    menuItem.setFont(menuFont);
-	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/op.png"))));
+	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/op.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // DeOp
 	    menuItem = new JMenuItem(Crafty.UserActions.DEOP);
 	    menuItem.setFont(menuFont);
-	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/deop.png"))));
+	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/deop.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
