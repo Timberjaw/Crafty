@@ -66,6 +66,19 @@ public class Crafty extends JFrame {
 	private static final String Version = "v0.5";
 	
 	private static Crafty instance;
+	
+	/*
+	 * Constants
+	 */
+	
+	public static final class UserActions {
+		public static final String KICK = "Kick";
+		public static final String BAN = "Ban";
+		public static final String BANIP = "Ban IP";
+		public static final String GETIP = "Get IP";
+		public static final String OP = "Op";
+		public static final String DEOP = "DeOp";
+	}
 
 	/*
 	 * GUI Fields
@@ -228,35 +241,42 @@ public class Crafty extends JFrame {
 	    Font menuFont = new Font(Font.SANS_SERIF, Font.BOLD, 12);
 	    
 	    // Kick
-	    menuItem = new JMenuItem("Kick");
+	    menuItem = new JMenuItem(Crafty.UserActions.KICK);
 	    menuItem.setFont(menuFont);
 	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/kick.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // Ban
-	    menuItem = new JMenuItem("Ban");
+	    menuItem = new JMenuItem(Crafty.UserActions.BAN);
+	    menuItem.setFont(menuFont);
+	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/ban.png"))));
+	    menuItem.addActionListener(actionListener);
+	    activeUserPopup.add(menuItem);
+	    
+	    // Ban IP
+	    menuItem = new JMenuItem(Crafty.UserActions.BANIP);
 	    menuItem.setFont(menuFont);
 	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/ban.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // Get IP
-	    menuItem = new JMenuItem("Get IP");
+	    menuItem = new JMenuItem(Crafty.UserActions.GETIP);
 	    menuItem.setFont(menuFont);
 	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/getip.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // Op
-	    menuItem = new JMenuItem("Op");
+	    menuItem = new JMenuItem(Crafty.UserActions.OP);
 	    menuItem.setFont(menuFont);
 	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/op.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
 	    
 	    // DeOp
-	    menuItem = new JMenuItem("DeOp");
+	    menuItem = new JMenuItem(Crafty.UserActions.DEOP);
 	    menuItem.setFont(menuFont);
 	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/deop.png"))));
 	    menuItem.addActionListener(actionListener);

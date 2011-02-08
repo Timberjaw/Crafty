@@ -18,25 +18,37 @@ public class ActiveUserActionListener implements ActionListener {
 	public void actionPerformed(ActionEvent e)
 	{
 		String player = "";
+		String cmd = ((JMenuItem)e.getSource()).getText();
+		
 		if(c.activeUserList.getSelectedIndex() >= 0)
 		{
 			// Get selected player name
 			player = (String)c.activeUserList.getSelectedValue();
 		}
 		
-		if(((JMenuItem)e.getSource()).getText().equals("Kick"))
+		// Kick user
+		if(cmd.equals(Crafty.UserActions.KICK))
 		{
 			Crafty.queueConsoleCommand(c.ms.server, "kick "+player);
 			return;
 		}
 		
-		if(((JMenuItem)e.getSource()).getText().equals("Ban"))
+		// Ban user by name
+		if(cmd.equals(Crafty.UserActions.BAN))
 		{
 			Crafty.queueConsoleCommand(c.ms.server, "ban "+player);
 			return;
 		}
 		
-		if(((JMenuItem)e.getSource()).getText().equals("Get IP"))
+		// Ban user by name
+		if(cmd.equals(Crafty.UserActions.BANIP))
+		{
+			Crafty.queueConsoleCommand(c.ms.server, "ban-ip "+player);
+			return;
+		}
+		
+		// Get IP address (display in console)
+		if(cmd.equals(Crafty.UserActions.GETIP))
 		{
 			Player p = c.ms.server.getPlayer(player);
 			if(p != null)
@@ -50,13 +62,15 @@ public class ActiveUserActionListener implements ActionListener {
 			return;
 		}
 		
-		if(((JMenuItem)e.getSource()).getText().equals("Op"))
+		// Op user
+		if(cmd.equals(Crafty.UserActions.OP))
 		{
 			Crafty.queueConsoleCommand(c.ms.server, "op "+player);
 			return;
 		}
 		
-		if(((JMenuItem)e.getSource()).getText().equals("DeOp"))
+		// DeOp user
+		if(cmd.equals(Crafty.UserActions.DEOP))
 		{
 			Crafty.queueConsoleCommand(c.ms.server, "deop "+player);
 			return;
