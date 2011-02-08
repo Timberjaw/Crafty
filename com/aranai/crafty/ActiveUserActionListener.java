@@ -29,21 +29,21 @@ public class ActiveUserActionListener implements ActionListener {
 		// Kick user
 		if(cmd.equals(Crafty.UserActions.KICK))
 		{
-			Crafty.queueConsoleCommand(c.ms.server, "kick "+player);
+			Crafty.queueConsoleCommand("kick "+player);
 			return;
 		}
 		
 		// Ban user by name
 		if(cmd.equals(Crafty.UserActions.BAN))
 		{
-			Crafty.queueConsoleCommand(c.ms.server, "ban "+player);
+			Crafty.queueConsoleCommand("ban "+player);
 			return;
 		}
 		
 		// Ban user by name
 		if(cmd.equals(Crafty.UserActions.BANIP))
 		{
-			Crafty.queueConsoleCommand(c.ms.server, "ban-ip "+player);
+			Crafty.queueConsoleCommand("ban-ip "+player);
 			return;
 		}
 		
@@ -65,14 +65,14 @@ public class ActiveUserActionListener implements ActionListener {
 		// Op user
 		if(cmd.equals(Crafty.UserActions.OP))
 		{
-			Crafty.queueConsoleCommand(c.ms.server, "op "+player);
+			Crafty.queueConsoleCommand("op "+player);
 			return;
 		}
 		
 		// DeOp user
 		if(cmd.equals(Crafty.UserActions.DEOP))
 		{
-			Crafty.queueConsoleCommand(c.ms.server, "deop "+player);
+			Crafty.queueConsoleCommand("deop "+player);
 			return;
 		}
     }

@@ -37,7 +37,8 @@ public class CommandManager {
 		this.helpStrings.put("stop", "Usage: .crafty stop | Description: Stops the server without closing Crafty.");
 		
 		// Restart
-		this.helpStrings.put("restart", "Usage: .crafty restart | Description: stops and restarts the server without closing Crafty.");
+		this.helpStrings.put("restart", "Usage: .crafty start | Description: stops and restarts the server without closing Crafty. Alias of 'restart'.");
+		this.helpStrings.put("restart", "Usage: .crafty restart | Description: stops and restarts the server without closing Crafty. Alias of 'start'.");
 	}
 	
 	public void parse(String cmd)
@@ -70,7 +71,7 @@ public class CommandManager {
 				this.stop();
 				return;
 			}
-			if(this.cmdArgs[1].equalsIgnoreCase("restart"))
+			if(this.cmdArgs[1].equalsIgnoreCase("start") || this.cmdArgs[1].equalsIgnoreCase("restart"))
 			{
 				this.restart();
 				return;
@@ -141,11 +142,13 @@ public class CommandManager {
 	private void stop()
 	{
 		// Stop the server
+		this.c.stopServer();
 	}
 	
 	private void restart()
 	{
 		// Restart the server
+		this.c.restartServer();
 	}
 	
 	/*

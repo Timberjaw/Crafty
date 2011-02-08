@@ -17,6 +17,7 @@ import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
+import java.security.Permission;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -109,7 +110,10 @@ public class Crafty extends JFrame {
 	/*
 	 * Common fields
 	 */
+	private String[] args;
 	private String argString;
+	private boolean serverOn;
+	private boolean loading;
 	private int consoleLineLimit;
 	private int consoleLineCount;
 	private ThemeManager tm;
@@ -124,6 +128,7 @@ public class Crafty extends JFrame {
 	protected MinecraftServer ms;
 	protected static Logger logger;
 	private ThreadServerApplication tsa;
+	private CraftyExceptionHandler eh;
 
 	public static void main(String args[]) {
 		try {
@@ -143,6 +148,9 @@ public class Crafty extends JFrame {
 		Crafty.instance = this;
 		
 		// Set common variables
+		this.args = args;
+		this.serverOn = false;
+		this.loading = true;
 		this.consoleLineLimit = 1000;
 		this.consoleLineCount = 0;
 		
@@ -171,6 +179,9 @@ public class Crafty extends JFrame {
 		
 		// Set up command manager (for .crafty commands)
 		cm = new CommandManager(this);
+		
+		// Set up exception handler
+		eh = new CraftyExceptionHandler();
 		
 		// Create panels
 		window = new JPanel(new BorderLayout());
@@ -315,7 +326,7 @@ public class Crafty extends JFrame {
         consoleInput.addActionListener(
     	    new ActionListener() {
     	        public void actionPerformed(ActionEvent e) {
-    	            Crafty.queueConsoleCommand(ms.server, consoleInput.getText());
+    	            Crafty.queueConsoleCommand(consoleInput.getText());
     	            consoleInput.setText("");
     	        }
     	    }
@@ -335,6 +346,212 @@ public class Crafty extends JFrame {
 		
 		// Get performance monitor
 		pf = new PerformanceMonitor();
+		
+		// Start the server
+		this.startServer();
+	    
+	    // Set player list update timer
+	    new Timer().schedule( 
+	        new java.util.TimerTask() {
+	            @Override
+	            public void run() {
+	                updatePlayerList();
+	            }
+	        }, 
+	        0,
+	        3000
+		);
+	    
+	    // Set performance monitor update timer
+	    new Timer().schedule( 
+	        new java.util.TimerTask() {
+	            @Override
+	            public void run() {
+	                updatePerfMon();
+	            }
+	        }, 
+	        5000,
+	        3000
+		);
+	}
+	
+	/*
+	 * Methods for capturing system exit calls
+	 * Used to prevent the server from killing Crafty when the server stops
+	 * Code from: http://jroller.com/ethdsy/entry/disabling_system_exit
+	 */
+	
+	public static class ExitTrappedException extends SecurityException { private static final long serialVersionUID = 1L; }
+
+	private static void forbidSystemExitCall() {
+	    final SecurityManager securityManager = new SecurityManager() {
+	    	public void checkPermission( Permission permission ) {
+	    	  	if(permission.getName().contains("exitVM")) {
+	        		throw new ExitTrappedException() ;
+	        	}
+	      	}
+		} ;
+		System.setSecurityManager( securityManager ) ;
+	}
+
+	private static void enableSystemExitCall() {
+		System.setSecurityManager( null ) ;
+	}
+
+	// asList converts a series of strings to a List
+	private static List<String> asList(String... params) {
+	    return Arrays.asList(params);
+	}
+	
+	// Get instance
+	public static Crafty instance()
+	{
+		return Crafty.instance;
+	}
+	
+	// Get version
+	public static String Version()
+	{
+		return Crafty.Version;
+	}
+	
+	// Update the output window
+	private void updateTextArea(final String text) {  
+		SwingUtilities.invokeLater(new Runnable() {  
+			public void run() {
+				prepAndPrintText(text);
+				consoleLineCount++;
+				
+				// Check line limit
+				if(consoleLineCount > consoleLineLimit)
+				{
+					String fullText;
+					try {
+						StyledDocument doc = serverOutput.getStyledDocument();
+						fullText = doc.getText(0,doc.getLength());
+						int eol = fullText.indexOf("\n");
+						doc.remove(0, eol+1);
+						consoleLineCount--;
+					} catch (BadLocationException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		});  
+	}
+	
+	// Update the player list
+	private void updatePlayerList()
+	{
+		// Clear the player list and return if the server is inactive
+		if(!this.serverOn) { activeUserListModel.clear(); return; }
+		
+		if(ms == null || ms.server == null) { return; }
+		Player[] players = ms.server.getOnlinePlayers();
+		String[] playerNames = new String[players.length];
+		if(players.length == 0)
+		{
+			activeUserListModel.clear();
+		}
+		else
+		{
+			// Add new players
+			int i = 0;
+			for(Player p : players)
+			{
+				if(!activeUserListModel.contains(p.getName()))
+				{
+					activeUserListModel.addElement(p.getName());
+				}
+				playerNames[i] = p.getName();
+				i++;
+			}
+			
+			// Remove disconnected players
+			List<String> pList = Arrays.asList(playerNames);
+			for(Object p : activeUserListModel.toArray())
+			{
+				if(!pList.contains((String)p))
+				{
+					activeUserListModel.removeElement((String)p);
+				}
+			}
+		}
+	}
+	
+	// Update the performance monitor
+	private void updatePerfMon()
+	{
+		// Return if server is not on
+		if(!this.serverOn) {
+			if(ms != null && ms.server != null && ms.server.getWorlds() != null && ms.server.getWorlds().size() > 0)
+			{
+				this.serverOn = true;
+				this.loading = false;
+			}
+		}
+		
+		// Get RAM usage
+		String mem = Long.toString(PerformanceMonitor.memoryUsed()/1024/1024);
+		String memMax = Long.toString(PerformanceMonitor.memoryAvailable()/1024/1024);
+		
+		// Get thread count
+		int threads = PerformanceMonitor.threadsUsed();
+		
+		// Get CPU usage
+		String cpu = new DecimalFormat("#.##").format(pf.getCpuUsage());
+		
+		if(this.serverOn) {
+			// Get CraftBukkit build
+			String cbVer = "Unknown";
+			String cbName = "Unknown";
+			cbVer = ms.server.getVersion();
+			cbName = ms.server.getWorlds().get(0).getName();
+			
+			statusMsg.setText("CraftBukkit Version: "+cbVer+" | World: "+cbName+" | Args: "+this.argString);
+		}
+		
+		perfMonText.setText(
+			"Memory Used: " + mem + "/" + memMax + "mb\n"
+			+"CPU: " + cpu + "%\n"
+			+"Threads: " + threads + "\n"
+		);
+	}
+	
+	// Capture system.out and system.err
+	private void redirectSystemStreams() {
+	  out = new OutputStream() {
+	    @Override  
+	    public void write(int b) throws IOException {  
+	      updateTextArea(String.valueOf((char) b));  
+	    }  
+	  
+	    @Override  
+	    public void write(byte[] b, int off, int len) throws IOException {  
+	      updateTextArea(new String(b, off, len));  
+	    }  
+	  
+	    @Override  
+	    public void write(byte[] b) throws IOException {  
+	      write(b, 0, b.length);  
+	    }  
+	  };
+	  
+	  byte[] buf = "".getBytes();
+	  in = new ByteArrayInputStream(buf);
+	  
+		System.setOut(new PrintStream(out, true));  
+		System.setErr(new PrintStream(out, true));
+		System.setIn(in);
+	}
+	
+	/*
+	 * startServer() attempts to start the server
+	 */
+	
+	public void startServer()
+	{
+		String[] args = this.args;
 		
 		// Parse options
 		// Option parsing code taken from: org/bukkit/craftbukkit/Main.java
@@ -400,171 +617,88 @@ public class Crafty extends JFrame {
 			try {
 	            ms = new MinecraftServer(options);
 	            tsa = new ThreadServerApplication("Server thread", ms);
+	            tsa.setUncaughtExceptionHandler(eh);
 	            tsa.start();
 	            logger = Logger.getLogger("Minecraft");
 	        } catch (Exception exception) {
 	            MinecraftServer.a.log(Level.SEVERE, "Failed to start the minecraft server", exception);
 	        }
 	    }
-	    
-	    // Set player list update timer
-	    new Timer().schedule( 
-	        new java.util.TimerTask() {
-	            @Override
-	            public void run() {
-	                updatePlayerList();
-	            }
-	        }, 
-	        0,
-	        3000
-		);
-	    
-	    // Set performance monitor update timer
-	    new Timer().schedule( 
-	        new java.util.TimerTask() {
-	            @Override
-	            public void run() {
-	                updatePerfMon();
-	            }
-	        }, 
-	        5000,
-	        3000
-		);
-	}
-
-	private static List<String> asList(String... params) {
-	    return Arrays.asList(params);
 	}
 	
-	// Get instance
-	public static Crafty instance()
+	/*
+	 * stopServer attempts to stop the server without exiting Crafty
+	 */
+	
+	public void stopServer()
 	{
-		return Crafty.instance;
-	}
-	
-	// Get version
-	public static String Version()
-	{
-		return Crafty.Version;
-	}
-	
-	// Update the output window
-	private void updateTextArea(final String text) {  
-		SwingUtilities.invokeLater(new Runnable() {  
-			public void run() {
-				prepAndPrintText(text);
-				consoleLineCount++;
-				
-				// Check line limit
-				if(consoleLineCount > consoleLineLimit)
-				{
-					String fullText;
-					try {
-						StyledDocument doc = serverOutput.getStyledDocument();
-						fullText = doc.getText(0,doc.getLength());
-						int eol = fullText.indexOf("\n");
-						doc.remove(0, eol+1);
-						consoleLineCount--;
-					} catch (BadLocationException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-		});  
-	}
-	
-	// Update the player list
-	private void updatePlayerList()
-	{
-		if(ms == null || ms.server == null) { return; }
-		Player[] players = ms.server.getOnlinePlayers();
-		String[] playerNames = new String[players.length];
-		if(players.length == 0)
+		if(this.serverOn)
 		{
-			activeUserListModel.clear();
+			this.logMsg("Stopping server...");
+			
+			new Timer().schedule( 
+			        new java.util.TimerTask() {
+			            @Override
+			            public void run() {
+			
+							// Disable exit calls
+							Crafty.forbidSystemExitCall();
+							
+							// Stop the server
+							Crafty.queueConsoleCommand("stop");
+							
+							try {
+								if(tsa.isAlive())
+								{
+									tsa.join();
+								}	
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+							
+							// Re-enable exit calls
+							Crafty.enableSystemExitCall();
+							
+							// Cancel self
+							this.cancel();
+			            }
+			        }, 
+			        1000,
+			        1000
+				);
 		}
 		else
 		{
-			// Add new players
-			int i = 0;
-			for(Player p : players)
-			{
-				if(!activeUserListModel.contains(p.getName()))
-				{
-					activeUserListModel.addElement(p.getName());
-				}
-				playerNames[i] = p.getName();
-				i++;
-			}
-			
-			// Remove disconnected players
-			List<String> pList = Arrays.asList(playerNames);
-			for(Object p : activeUserListModel.toArray())
-			{
-				if(!pList.contains((String)p))
-				{
-					activeUserListModel.removeElement((String)p);
-				}
-			}
+			this.logMsg("Server is off.");
 		}
 	}
 	
-	// Update the performance monitor
-	private void updatePerfMon()
+	public void stopServerDone()
 	{
-		// Get RAM usage
-		String mem = Long.toString(PerformanceMonitor.memoryUsed()/1024/1024);
-		String memMax = Long.toString(PerformanceMonitor.memoryAvailable()/1024/1024);
-		
-		// Get thread count
-		int threads = PerformanceMonitor.threadsUsed();
-		
-		// Get CPU usage
-		String cpu = new DecimalFormat("#.##").format(pf.getCpuUsage());
-		
-		// Get CraftBukkit build
-		String cbVer = "Unknown";
-		String cbName = "Unknown";
-		if(ms != null && ms.server != null && ms.server.getWorlds() != null && ms.server.getWorlds().size() > 0)
-		{
-			cbVer = ms.server.getVersion();
-			cbName = ms.server.getWorlds().get(0).getName();
-		}
-		
-		statusMsg.setText("CraftBukkit Version: "+cbVer+" | World: "+cbName+" | Args: "+this.argString);
-		
-		perfMonText.setText(
-			"Memory Used: " + mem + "/" + memMax + "mb\n"
-			+"CPU: " + cpu + "%\n"
-			+"Threads: " + threads + "\n"
-		);
+		// Server has stopped
+		this.ms = null;
+		this.serverOn = false;
+		this.logMsg("Server has stopped!");
+		this.logMsg("Running Garbage Collector...");
+		System.gc();
+		this.logMsg("Garbage Collector Complete.");
 	}
 	
-	// Capture system.out and system.err
-	private void redirectSystemStreams() {
-	  out = new OutputStream() {
-	    @Override  
-	    public void write(int b) throws IOException {  
-	      updateTextArea(String.valueOf((char) b));  
-	    }  
-	  
-	    @Override  
-	    public void write(byte[] b, int off, int len) throws IOException {  
-	      updateTextArea(new String(b, off, len));  
-	    }  
-	  
-	    @Override  
-	    public void write(byte[] b) throws IOException {  
-	      write(b, 0, b.length);  
-	    }  
-	  };
-	  
-	  byte[] buf = "".getBytes();
-	  in = new ByteArrayInputStream(buf);
-	  
-		System.setOut(new PrintStream(out, true));  
-		System.setErr(new PrintStream(out, true));
-		System.setIn(in);
+	/*
+	 * restartServer attempts to restart the server without exiting Crafty
+	 */
+	
+	public void restartServer()
+	{
+		this.logMsg("Restarting server.");
+		
+		if(this.serverOn)
+		{
+			this.logMsg("Server is on");
+			this.stopServer();
+		}
+		
+		this.startServer();
 	}
 	
 	/*
@@ -572,17 +706,28 @@ public class Crafty extends JFrame {
 	 */
 	public void close()
 	{
-		this.logMsg("Exiting! Waiting for server to stop...");
+		// Disallow close while loading
+		if(this.loading) { return; }
 		
-		Crafty.queueConsoleCommand(ms.server, "stop");
-		try {
-			if(tsa.isAlive())
-			{
-				tsa.join();
+		if(this.serverOn)
+		{
+			this.logMsg("Exiting! Waiting for server to stop...");
+			
+			Crafty.queueConsoleCommand("stop");
+			try {
+				if(tsa.isAlive())
+				{
+					tsa.join();
+				}
+				System.exit(0);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
+		}
+		else
+		{
+			this.logMsg("Exiting! Server is off.");
 			System.exit(0);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -604,7 +749,7 @@ public class Crafty extends JFrame {
 	 * If so, it is sent to the CommandManager
 	 * If not, it is queued in the server  
 	 */
-	public static void queueConsoleCommand(CraftServer server, String cmd) {
+	public static void queueConsoleCommand(String cmd) {
 		// Intercept Crafty commands
 		if(cmd.startsWith(".crafty"))
 		{
@@ -612,9 +757,11 @@ public class Crafty extends JFrame {
 			return;
 		}
 		
+		if(!Crafty.instance().serverOn) { return; }
+		
 		// Credit: http://forums.bukkit.org/threads/send-commands-to-console.3241
 		// Note: this is likely to break on Minecraft server updates
-        CraftServer cs = server;
+        CraftServer cs = Crafty.instance().ms.server;
         Field f;
         try {
             f = CraftServer.class.getDeclaredField("console");
