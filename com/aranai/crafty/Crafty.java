@@ -437,9 +437,15 @@ public class Crafty extends JFrame {
 	}
 	
 	// Get instance
-	static Crafty instance()
+	public static Crafty instance()
 	{
 		return Crafty.instance;
+	}
+	
+	// Get version
+	public static String Version()
+	{
+		return Crafty.Version;
 	}
 	
 	// Update the output window

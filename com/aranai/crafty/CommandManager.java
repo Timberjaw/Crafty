@@ -2,6 +2,7 @@ package com.aranai.crafty;
 
 public class CommandManager {
 	private Crafty c;
+	private String[] cmdArgs;
 	
 	CommandManager(Crafty c)
 	{
@@ -10,12 +11,33 @@ public class CommandManager {
 	
 	public void parse(String cmd)
 	{
-		String[] cmdArgs = cmd.split(" ");
-		if(cmdArgs.length > 1)
+		this.cmdArgs = cmd.split(" ");
+		if(this.cmdArgs.length > 1)
 		{
-			if(cmdArgs[1].equalsIgnoreCase("theme"))
+			if(this.cmdArgs[1].equalsIgnoreCase("theme"))
 			{
-				this.theme(cmdArgs);
+				this.theme();
+				return;
+			}
+			if(this.cmdArgs[1].equalsIgnoreCase("version") || this.cmdArgs[1].equalsIgnoreCase("about"))
+			{
+				this.about();
+				return;
+			}
+			if(this.cmdArgs[1].equalsIgnoreCase("exit"))
+			{
+				this.exit();
+				return;
+			}
+			if(this.cmdArgs[1].equalsIgnoreCase("stop"))
+			{
+				this.stop();
+				return;
+			}
+			if(this.cmdArgs[1].equalsIgnoreCase("restart"))
+			{
+				this.restart();
+				return;
 			}
 		}
 		else
@@ -26,20 +48,46 @@ public class CommandManager {
 	}
 	
 	/*
-	 * Theme commands
+	 * One-liners
 	 */
 	
-	private void theme(String[] cmdArgs)
+	private void about()
+	{
+		// Print out the current version info
+		c.logMsg("Crafty Version " + Crafty.Version() + "\nAuthor: Steven \"Timberjaw\" Richards\nE-Mail: timberjaw@gmail.com");
+	}
+	
+	private void exit()
+	{
+		// Stop the server and close the program
+		this.c.close();
+	}
+	
+	private void stop()
+	{
+		// Stop the server
+	}
+	
+	private void restart()
+	{
+		// Restart the server
+	}
+	
+	/*
+	 * Themes
+	 */
+	
+	private void theme()
 	{
 		// Theme actions
-		if(cmdArgs.length > 2)
+		if(this.cmdArgs.length > 2)
 		{
 			String action = cmdArgs[2];
 			
 			// Set theme
 			if(action.equalsIgnoreCase("set"))
 			{
-				if(cmdArgs.length > 3)
+				if(this.cmdArgs.length > 3)
 				{
 					String theme = cmdArgs[3];
 					if(c.getThemeManager().themeAvailable(theme))
