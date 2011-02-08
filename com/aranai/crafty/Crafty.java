@@ -113,6 +113,7 @@ public class Crafty extends JFrame {
 	private int consoleLineLimit;
 	private int consoleLineCount;
 	private ThemeManager tm;
+	private CommandManager cm;
 	
 	/*
 	 * CraftBukkit Interception Fields
@@ -162,11 +163,14 @@ public class Crafty extends JFrame {
 		this.setTitle("Crafty "+Crafty.Version);
 		this.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/org/crafty/resources/icon.png")));
 		this.setSize(850, 500);
-		this.setMinimumSize(new Dimension(600,400));
+		this.setMinimumSize(new Dimension(600,480));
 		this.addWindowListener(new CraftyWindowListener(this));
 		
 		// Set up theme manager
 		tm = new ThemeManager();
+		
+		// Set up command manager (for .crafty commands)
+		cm = new CommandManager(this);
 		
 		// Create panels
 		window = new JPanel(new BorderLayout());
@@ -619,60 +623,8 @@ public class Crafty extends JFrame {
 	
 	public void parseCraftyCommand(String cmd)
 	{
-		String[] cmdArgs = cmd.split(" ");
-		if(cmdArgs.length > 1)
-		{
-			if(cmdArgs[1].equalsIgnoreCase("theme"))
-			{
-				// Theme actions
-				if(cmdArgs.length > 2)
-				{
-					String action = cmdArgs[2];
-					
-					// Set theme
-					if(action.equalsIgnoreCase("set"))
-					{
-						if(cmdArgs.length > 3)
-						{
-							String theme = cmdArgs[3];
-							if(this.tm.themeAvailable(theme))
-							{
-								// Set theme
-								this.setTheme(theme);
-								this.logMsg("Theme changed.");
-							}
-							else
-							{
-								// Bad theme
-								this.logMsg("Invalid theme specified.");
-							}
-						}
-						else
-						{
-							// No theme specified
-							this.logMsg("No theme specified.");
-						}
-					}
-					
-					// Current theme
-					if(action.equalsIgnoreCase("current"))
-					{
-						String currentTheme = tm.getCurrentTheme().getName();
-						this.logMsg("Current Theme: " + currentTheme);
-					}
-				}
-				else
-				{
-					// No action specified
-					this.logMsg("No action specified.");
-				}
-			}
-		}
-		else
-		{
-			// No command
-			this.logMsg("No command entered.");
-		}
+		// Send command to command manager
+		this.cm.parse(cmd);
 	}
 	
 	public void prepAndPrintMultiLineText(String text)
@@ -728,6 +680,22 @@ public class Crafty extends JFrame {
 	}
 	
 	/*
+	 * getCommandManager returns the CommandManager instance
+	 */
+	public CommandManager getCommandManager()
+	{
+		return this.cm;
+	}
+	
+	/*
+	 * getThemeManager returns the ThemeManager instance
+	 */
+	public ThemeManager getThemeManager()
+	{
+		return this.tm;
+	}
+	
+	/*
 	 * setTheme sets the visual theme for the console window and rebuilds the output.
 	 * The operation is expensive, but is unlikely to be used frequently.
 	 */
@@ -749,6 +717,9 @@ public class Crafty extends JFrame {
 		}
 	}
 	
+	/*
+	 * buildThemes creates the default themes and adds them to the Theme Manager
+	 */
 	private void buildThemes()
 	{
 		Theme defaultTheme = new ThemeBuilder()
