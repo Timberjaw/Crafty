@@ -1,12 +1,43 @@
 package com.aranai.crafty;
 
+import java.util.Arrays;
+import java.util.Hashtable;
+
 public class CommandManager {
 	private Crafty c;
 	private String[] cmdArgs;
+	private Hashtable<String,String> helpStrings;
 	
 	CommandManager(Crafty c)
 	{
 		this.c = c;
+		this.prepHelpStrings();
+	}
+	
+	public void prepHelpStrings()
+	{
+		this.helpStrings = new Hashtable<String,String>();
+		
+		// Help
+		this.helpStrings.put("help", "Usage: .crafty help [command] | Description: This command.");
+		
+		// Theme
+		this.helpStrings.put("theme", "Usage: .crafty theme [action] <value> | Description: Processes a theme action, such as 'set <value>' or 'current'.");
+		this.helpStrings.put("theme set", "Usage: .crafty theme set <value> | Description: Sets the current theme to the specified theme. e.g. 'theme set Dark'.");
+		this.helpStrings.put("theme current", "Usage: .crafty theme current | Description: Returns the name of the currently active theme.");
+		
+		// Version/About
+		this.helpStrings.put("version", "Usage: .crafty version | Description: returns version and author information for Crafty. Alias of 'about'.");
+		this.helpStrings.put("about", "Usage: .crafty about | Description: returns version and author information for Crafty. Alias of 'version'.");
+		
+		// Exit
+		this.helpStrings.put("exit", "Usage: .crafty exit | Stops the server and closes Crafty.");
+		
+		// Stop
+		this.helpStrings.put("stop", "Usage: .crafty stop | Description: Stops the server without closing Crafty.");
+		
+		// Restart
+		this.helpStrings.put("restart", "Usage: .crafty restart | Description: stops and restarts the server without closing Crafty.");
 	}
 	
 	public void parse(String cmd)
@@ -14,6 +45,11 @@ public class CommandManager {
 		this.cmdArgs = cmd.split(" ");
 		if(this.cmdArgs.length > 1)
 		{
+			if(this.cmdArgs[1].equalsIgnoreCase("help"))
+			{
+				this.help();
+				return;
+			}
 			if(this.cmdArgs[1].equalsIgnoreCase("theme"))
 			{
 				this.theme();
@@ -47,6 +83,42 @@ public class CommandManager {
 		{
 			// No command
 			c.logMsg("No command entered.");
+		}
+	}
+	
+	/*
+	 * Help
+	 */
+	
+	private void help()
+	{
+		if(this.cmdArgs.length > 2)
+		{
+			StringBuffer buf = new StringBuffer();
+			for(String s : Arrays.copyOfRange(cmdArgs, 2, cmdArgs.length))
+			{
+				buf.append(" "+s);
+			}
+			String helpCmd = buf.toString().trim();
+			
+			if(this.helpStrings.containsKey(helpCmd)){
+				c.logMsg(this.helpStrings.get(helpCmd));
+			}
+			else
+			{
+				c.logMsg("No info available on '"+helpCmd+"', sorry.");
+			}
+		}
+		else
+		{
+			// Overview
+			c.logMsg("Usage: .crafty <command> [args...]. All commands are prefixed with .crafty");
+			c.logMsg("Use .crafty help <command> for more information about a particular command.");
+			c.logMsg("Available commands:");
+			for(String s : this.helpStrings.keySet())
+			{
+				c.logMsg(s);
+			}
 		}
 	}
 	

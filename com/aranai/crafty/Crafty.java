@@ -572,6 +572,8 @@ public class Crafty extends JFrame {
 	 */
 	public void close()
 	{
+		this.logMsg("Exiting! Waiting for server to stop...");
+		
 		Crafty.queueConsoleCommand(ms.server, "stop");
 		try {
 			if(tsa.isAlive())
