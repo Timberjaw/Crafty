@@ -567,6 +567,9 @@ public class Crafty extends JFrame {
 		System.setIn(in);
 	}
 	
+	/*
+	 * close() stops the server and exits Crafty
+	 */
 	public void close()
 	{
 		Crafty.queueConsoleCommand(ms.server, "stop");
@@ -581,6 +584,9 @@ public class Crafty extends JFrame {
 		}
 	}
 	
+	/*
+	 * logMsg writes a timestamped Crafty-stamped log message to the console
+	 */
 	public void logMsg(String m)
 	{
 		DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -591,6 +597,11 @@ public class Crafty extends JFrame {
 		this.prepAndPrintText(timestamp + " [CRAFTY] " + m + "\n");
 	}
 	
+	/*
+	 * queueConsoleCommand first parses a console command to see if it's a Crafty command
+	 * If so, it is sent to the CommandManager
+	 * If not, it is queued in the server  
+	 */
 	public static void queueConsoleCommand(CraftServer server, String cmd) {
 		// Intercept Crafty commands
 		if(cmd.startsWith(".crafty"))
@@ -600,6 +611,7 @@ public class Crafty extends JFrame {
 		}
 		
 		// Credit: http://forums.bukkit.org/threads/send-commands-to-console.3241
+		// Note: this is likely to break on Minecraft server updates
         CraftServer cs = server;
         Field f;
         try {
@@ -627,12 +639,19 @@ public class Crafty extends JFrame {
         }
     }
 	
+	/*
+	 * parseCraftyCommand simply provides a local method for sending commands to the CommandManager
+	 */
 	public void parseCraftyCommand(String cmd)
 	{
 		// Send command to command manager
 		this.cm.parse(cmd);
 	}
 	
+	/*
+	 * prepAndPrintMultiLineText breaks a string into lines and prints each individually
+	 * Primarily needed when changing the console theme, as each line must be reprocessed
+	 */
 	public void prepAndPrintMultiLineText(String text)
 	{
 		String[] lines = text.split("\n");
@@ -642,6 +661,10 @@ public class Crafty extends JFrame {
 		}
 	}
 	
+	/*
+	 * prepAndPrintString handles syntax highlighting for Crafty's fancy console output
+	 * Processes timestamps and standard bracketed values
+	 */
 	public void prepAndPrintText(String text)
 	{
 		// Parse timestamp
