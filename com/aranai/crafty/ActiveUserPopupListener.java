@@ -1,4 +1,4 @@
-package org.crafty;
+package com.aranai.crafty;
 
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;

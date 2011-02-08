@@ -1,4 +1,4 @@
-package org.crafty;
+package com.aranai.crafty;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;

@@ -1,4 +1,4 @@
-package org.crafty;
+package com.aranai.crafty;
 
 import java.awt.BorderLayout;
 import java.awt.Color;

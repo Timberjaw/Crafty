@@ -1,4 +1,4 @@
-package org.crafty;
+package com.aranai.crafty;
 
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
