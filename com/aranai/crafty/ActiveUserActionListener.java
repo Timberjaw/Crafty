@@ -53,11 +53,11 @@ public class ActiveUserActionListener implements ActionListener {
 			Player p = c.ms.server.getPlayer(player);
 			if(p != null)
 			{
-				Crafty.logger.info("[Crafty] Player "+player+" has IP: "+p.getAddress().toString());
+				c.logMsg("[Crafty] Player "+player+" has IP: "+p.getAddress().toString());
 			}
 			else
 			{
-				Crafty.logger.info("[Crafty] Could not find player "+player);
+				c.logMsg("[Crafty] Could not find player "+player);
 			}
 			return;
 		}
