@@ -37,8 +37,8 @@ public class CommandManager {
 		this.helpStrings.put("stop", "Usage: .crafty stop | Description: Stops the server without closing Crafty.");
 		
 		// Restart
-		this.helpStrings.put("restart", "Usage: .crafty start | Description: stops and restarts the server without closing Crafty. Alias of 'restart'.");
-		this.helpStrings.put("restart", "Usage: .crafty restart | Description: stops and restarts the server without closing Crafty. Alias of 'start'.");
+		this.helpStrings.put("start", "Usage: .crafty start | Description: starts the server if it is has not yet been started.");
+		this.helpStrings.put("restart", "Usage: .crafty restart | Description: stops and restarts the server without closing Crafty.");
 	}
 	
 	public void parse(String cmd)
@@ -71,7 +71,12 @@ public class CommandManager {
 				this.stop();
 				return;
 			}
-			if(this.cmdArgs[1].equalsIgnoreCase("start") || this.cmdArgs[1].equalsIgnoreCase("restart"))
+			if(this.cmdArgs[1].equalsIgnoreCase("start"))
+			{
+				this.start();
+				return;
+			}
+			if(this.cmdArgs[1].equalsIgnoreCase("restart"))
 			{
 				this.restart();
 				return;
@@ -143,6 +148,19 @@ public class CommandManager {
 	{
 		// Stop the server
 		this.c.stopServer();
+	}
+	
+	private void start()
+	{
+		// Start the server
+		if(!this.c.serverOn && this.c.ms == null)
+		{
+			this.c.startServer();
+		}
+		else
+		{
+			c.logMsg("Server is already running or has been stopped manually. Try: .crafty restart");
+		}
 	}
 	
 	private void restart()

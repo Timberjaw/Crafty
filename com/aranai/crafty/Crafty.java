@@ -17,10 +17,13 @@ import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
+import java.net.ServerSocket;
+import java.net.URISyntaxException;
 import java.security.Permission;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -112,8 +115,9 @@ public class Crafty extends JFrame {
 	 */
 	private String[] args;
 	private String argString;
-	private boolean serverOn;
-	private boolean loading;
+	protected volatile boolean serverOn;
+	protected volatile boolean isLoading;
+	protected volatile boolean isRestarting;
 	private int consoleLineLimit;
 	private int consoleLineCount;
 	private ThemeManager tm;
@@ -150,7 +154,7 @@ public class Crafty extends JFrame {
 		// Set common variables
 		this.args = args;
 		this.serverOn = false;
-		this.loading = true;
+		this.isLoading = true;
 		this.consoleLineLimit = 1000;
 		this.consoleLineCount = 0;
 		
@@ -484,10 +488,10 @@ public class Crafty extends JFrame {
 	{
 		// Return if server is not on
 		if(!this.serverOn) {
-			if(ms != null && ms.server != null && ms.server.getWorlds() != null && ms.server.getWorlds().size() > 0)
+			if(!this.isRestarting && ms != null && ms.server != null && ms.server.getWorlds() != null && ms.server.getWorlds().size() > 0)
 			{
 				this.serverOn = true;
-				this.loading = false;
+				this.isLoading = false;
 			}
 		}
 		
@@ -615,10 +619,52 @@ public class Crafty extends JFrame {
 	    } else {
 			// Start the server
 			try {
+				// Check port availability
+				// If we're restarting, it may not have been freed yet
+				boolean portTaken = true;
+				int port = 25565;
+				if(options.has("server-port")) {
+					port = (Integer)options.valueOf("port"); 
+				}
+				int portWaitTime = 0;
+				while(portTaken == true && portWaitTime < 5000)
+				{
+					ServerSocket socket = null;
+					try {
+					    socket = new ServerSocket(port);
+					    portTaken = false;
+					} catch (IOException e) {
+						this.logMsg("Port "+port+" is unavailable, waiting...");
+						synchronized(this)
+						{
+							this.wait(1000);
+						}
+						portWaitTime += 1000;
+					} finally { 
+					    // Clean up
+					    if (socket != null) socket.close();
+					}
+				}
+				
+				// Make sure port was available
+				if(portTaken)
+				{
+					this.logMsg("Could not start server because port " + port + " is still unavailable. You can try restarting again with .crafty start or check for other applications using this port.");
+					return;
+				}
+				
+				// Create the minecraft server
 	            ms = new MinecraftServer(options);
+	            
+	            // Create our own ThreadServerApplication
 	            tsa = new ThreadServerApplication("Server thread", ms);
+	            
+	            // Catch exceptions from the TSA ourselves (mainly used to catch system.exit() events)
 	            tsa.setUncaughtExceptionHandler(eh);
+	            
+	            // Start the TSA
 	            tsa.start();
+	            
 	            logger = Logger.getLogger("Minecraft");
 	        } catch (Exception exception) {
 	            MinecraftServer.a.log(Level.SEVERE, "Failed to start the minecraft server", exception);
@@ -661,6 +707,12 @@ public class Crafty extends JFrame {
 							
 							// Cancel self
 							this.cancel();
+							
+							// Restart if requested
+							if(isRestarting)
+							{
+								Crafty.instance().restartApplication();
+							}
 			            }
 			        }, 
 			        1000,
@@ -673,32 +725,42 @@ public class Crafty extends JFrame {
 		}
 	}
 	
+	/*
+	 * stopServerDone does some cleanup after server stop, and notifies the user that the operation has completed
+	 */
+	
 	public void stopServerDone()
 	{
 		// Server has stopped
-		this.ms = null;
 		this.serverOn = false;
+		
 		this.logMsg("Server has stopped!");
+		
+		// Run the GC
 		this.logMsg("Running Garbage Collector...");
 		System.gc();
 		this.logMsg("Garbage Collector Complete.");
 	}
 	
 	/*
-	 * restartServer attempts to restart the server without exiting Crafty
+	 * restartServer attempts to restart the server
 	 */
 	
 	public void restartServer()
 	{
 		this.logMsg("Restarting server.");
+		this.isRestarting = true;
 		
+		// If server is on, stop it
 		if(this.serverOn)
 		{
-			this.logMsg("Server is on");
+			this.logMsg("Server is on.");
 			this.stopServer();
 		}
-		
-		this.startServer();
+		else
+		{
+			this.restartApplication();
+		}
 	}
 	
 	/*
@@ -707,7 +769,7 @@ public class Crafty extends JFrame {
 	public void close()
 	{
 		// Disallow close while loading
-		if(this.loading) { return; }
+		if(this.isLoading) { return; }
 		
 		if(this.serverOn)
 		{
@@ -934,5 +996,62 @@ public class Crafty extends JFrame {
 		tm.addTheme(altTheme);
 		
 		tm.setCurrentTheme("Default");
+	}
+	
+	/*
+	 * restartApplication closes and restarts Crafty
+	 * Code from: http://stackoverflow.com/questions/4159802/restart-a-java-application/4194224#4194224
+	 */
+	public void restartApplication()
+	{
+		final String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "javaw";
+		File currentJar;
+		try {
+			currentJar = new File(Crafty.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+		} catch (URISyntaxException e1) {
+			e1.printStackTrace();
+			return;
+		}
+
+		/* is it a jar file? */
+		if(!currentJar.getName().endsWith(".jar"))
+		{
+			this.logMsg("ERROR: Current application is not a .jar, cannot restart.");
+			return;
+		}
+
+		/* Build command: java -jar application.jar */
+		final ArrayList<String> command = new ArrayList<String>();
+		command.add(javaBin);
+		
+		// Add java args
+		RuntimeMXBean RuntimemxBean = ManagementFactory.getRuntimeMXBean();
+		Object[] tmpOptsObj = RuntimemxBean.getInputArguments().toArray();
+		for(Object s : tmpOptsObj)
+		{
+			command.add(s.toString());
+		}
+		
+		// Add jar
+		command.add("-jar");
+		command.add(currentJar.getPath());
+		
+		// Add Crafty / CraftBukkit / Minecraft_Server args
+		for(String s : this.args)
+		{
+			command.add(s);
+		}
+
+		final ProcessBuilder builder = new ProcessBuilder(command);
+		try {
+			// Launch the new process
+			builder.start();
+			
+			// Exit
+			System.exit(0);
+		} catch (IOException e) {
+			e.printStackTrace();
+			this.logMsg("ERROR: Failed to restart!");
+		}
 	}
 }
