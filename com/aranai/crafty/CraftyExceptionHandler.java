@@ -2,7 +2,6 @@ package com.aranai.crafty;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 
-import com.aranai.crafty.Crafty.ExitTrappedException;
 
 public class CraftyExceptionHandler implements UncaughtExceptionHandler {
 

@@ -26,6 +26,12 @@ public class CommandManager {
 		this.helpStrings.put("theme set", "Usage: .crafty theme set <value> | Description: Sets the current theme to the specified theme. e.g. 'theme set Dark'.");
 		this.helpStrings.put("theme current", "Usage: .crafty theme current | Description: Returns the name of the currently active theme.");
 		
+		// Font
+		this.helpStrings.put("font", "Usage: .crafty font [action] <value> | Description: Processes a font action, such as 'setsize 12.0' or 'increase'");
+		this.helpStrings.put("font setsize", "Usage: .crafty font setsize [value] | Description: Sets the point size of the console font.");
+		this.helpStrings.put("font increase", "Usage: .crafty font increase | Description: Increases the size of the console font.");
+		this.helpStrings.put("font decrease", "Usage: .crafty font decrease | Description: Decreases the size of the console font.");
+		
 		// Version/About
 		this.helpStrings.put("version", "Usage: .crafty version | Description: returns version and author information for Crafty. Alias of 'about'.");
 		this.helpStrings.put("about", "Usage: .crafty about | Description: returns version and author information for Crafty. Alias of 'version'.");
@@ -54,6 +60,11 @@ public class CommandManager {
 			if(this.cmdArgs[1].equalsIgnoreCase("theme"))
 			{
 				this.theme();
+				return;
+			}
+			if(this.cmdArgs[1].equalsIgnoreCase("font"))
+			{
+				this.font();
 				return;
 			}
 			if(this.cmdArgs[1].equalsIgnoreCase("version") || this.cmdArgs[1].equalsIgnoreCase("about"))
@@ -210,6 +221,58 @@ public class CommandManager {
 			{
 				String currentTheme = c.getThemeManager().getCurrentTheme().getName();
 				c.logMsg("Current Theme: " + currentTheme);
+			}
+		}
+		else
+		{
+			// No action specified
+			c.logMsg("No action specified.");
+		}
+	}
+	
+	private void font()
+	{
+		// Theme actions
+		if(this.cmdArgs.length > 2)
+		{
+			String action = cmdArgs[2];
+			
+			// Set font size
+			if(action.equalsIgnoreCase("setsize"))
+			{
+				if(this.cmdArgs.length > 3)
+				{
+					try
+					{
+						float newSize = Float.parseFloat(cmdArgs[3]);
+						c.getThemeManager().getCurrentTheme().setFontSize(newSize);
+						this.c.refreshTheme();
+					}
+					catch(Exception e)
+					{
+						// Invalid amount
+						c.logMsg("Invalid font size specified. Example: 12.0");
+					}
+				}
+				else
+				{
+					// No size specified
+					c.logMsg("No size specified. Example: 12.0");
+				}
+			}
+			
+			// Increase font size
+			if(action.equalsIgnoreCase("increase"))
+			{
+				c.getThemeManager().getCurrentTheme().adjustFontSizeByAmount(2.0f);
+				this.c.refreshTheme();
+			}
+			
+			// Decrease font size
+			if(action.equalsIgnoreCase("decrease"))
+			{
+				c.getThemeManager().getCurrentTheme().adjustFontSizeByAmount(-2.0f);
+				this.c.refreshTheme();
 			}
 		}
 		else

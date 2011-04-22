@@ -28,8 +28,10 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Timer;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
@@ -59,6 +61,7 @@ import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.entity.Player;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.PropertyManager;
 import net.minecraft.server.ThreadServerApplication;
 
 public class Crafty extends JFrame {
@@ -67,7 +70,7 @@ public class Crafty extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final String Version = "v0.6";
+	private static final String Version = "v0.7.2";
 	
 	private static Crafty instance;
 	
@@ -124,6 +127,12 @@ public class Crafty extends JFrame {
 	private CommandManager cm;
 	
 	/*
+	 * Logger
+	 */
+	private Logger cLog;
+	private FileHandler cLogFile;
+	
+	/*
 	 * CraftBukkit Interception Fields
 	 */
 	protected PerformanceMonitor pf;
@@ -150,6 +159,19 @@ public class Crafty extends JFrame {
 	Crafty(String args[]) {
 		// Set instance
 		Crafty.instance = this;
+		
+		// Get logger
+		this.cLog = Logger.getLogger("CraftyLog");
+		try {
+			this.cLogFile = new FileHandler("Crafty.log", true);
+			this.cLogFile.setFormatter(new SimpleFormatter());
+			this.cLog.setLevel(Level.ALL);
+			this.cLog.addHandler(cLogFile);
+		} catch (SecurityException e1) {
+			e1.printStackTrace();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
 		
 		// Set common variables
 		this.args = args;
@@ -232,7 +254,7 @@ public class Crafty extends JFrame {
     		new ActionListener() {
     			public void actionPerformed(ActionEvent e)
     			{
-    				close();
+    				Crafty.queueConsoleCommand(".crafty exit");
     			}
     		}
         );
@@ -385,8 +407,6 @@ public class Crafty extends JFrame {
 	 * Code from: http://jroller.com/ethdsy/entry/disabling_system_exit
 	 */
 	
-	public static class ExitTrappedException extends SecurityException { private static final long serialVersionUID = 1L; }
-
 	private static void forbidSystemExitCall() {
 	    final SecurityManager securityManager = new SecurityManager() {
 	    	public void checkPermission( Permission permission ) {
@@ -433,7 +453,7 @@ public class Crafty extends JFrame {
 					try {
 						StyledDocument doc = serverOutput.getStyledDocument();
 						fullText = doc.getText(0,doc.getLength());
-						int eol = fullText.indexOf("\n");
+						int eol = fullText.indexOf("\n", 0);
 						doc.remove(0, eol+1);
 						consoleLineCount--;
 					} catch (BadLocationException e) {
@@ -544,8 +564,8 @@ public class Crafty extends JFrame {
 	  byte[] buf = "".getBytes();
 	  in = new ByteArrayInputStream(buf);
 	  
-		System.setOut(new PrintStream(out, true));  
-		System.setErr(new PrintStream(out, true));
+		//System.setOut(new PrintStream(out, true));  
+		System.setErr(new PrintStream(out, true)); // Wat.
 		System.setIn(in);
 	}
 	
@@ -560,61 +580,72 @@ public class Crafty extends JFrame {
 		// Parse options
 		// Option parsing code taken from: org/bukkit/craftbukkit/Main.java
 		OptionParser parser = new OptionParser() {
-	        {
-	            acceptsAll(asList("?", "help"), "Show the help");
+            {
+                acceptsAll(asList("?", "help"), "Show the help");
 
-	            acceptsAll(asList("c", "config"), "Properties file to use")
-	                    .withRequiredArg()
-	                    .ofType(File.class)
-	                    .defaultsTo(new File("server.properties"))
-	                    .describedAs("Properties file");
+                acceptsAll(asList("c", "config"), "Properties file to use")
+                        .withRequiredArg()
+                        .ofType(File.class)
+                        .defaultsTo(new File("server.properties"))
+                        .describedAs("Properties file");
 
-	            acceptsAll(asList("P", "plugins"), "Plugin directory to use")
-	                    .withRequiredArg()
-	                    .ofType(File.class)
-	                    .defaultsTo(new File("plugins"))
-	                    .describedAs("Plugin directory");
+                acceptsAll(asList("P", "plugins"), "Plugin directory to use")
+                        .withRequiredArg()
+                        .ofType(File.class)
+                        .defaultsTo(new File("plugins"))
+                        .describedAs("Plugin directory");
 
-	            acceptsAll(asList("h", "host", "server-ip"), "Host to listen on")
-	                    .withRequiredArg()
-	                    .ofType(String.class)
-	                    .describedAs("Hostname or IP");
+                acceptsAll(asList("h", "host", "server-ip"), "Host to listen on")
+                        .withRequiredArg()
+                        .ofType(String.class)
+                        .describedAs("Hostname or IP");
 
-	            acceptsAll(asList("w", "world", "level-name"), "World directory")
-	                    .withRequiredArg()
-	                    .ofType(String.class)
-	                    .describedAs("World dir");
+                acceptsAll(asList("w", "world", "level-name"), "World directory")
+                        .withRequiredArg()
+                        .ofType(String.class)
+                        .describedAs("World dir");
 
-	            acceptsAll(asList("p", "port", "server-port"), "Port to listen on")
-	                    .withRequiredArg()
-	                    .ofType(Integer.class)
-	                    .describedAs("Port");
+                acceptsAll(asList("p", "port", "server-port"), "Port to listen on")
+                        .withRequiredArg()
+                        .ofType(Integer.class)
+                        .describedAs("Port");
 
-	            acceptsAll(asList("o", "online-mode"), "Whether to use online authentication")
-	                    .withRequiredArg()
-	                    .ofType(Boolean.class)
-	                    .describedAs("Authentication");
+                acceptsAll(asList("o", "online-mode"), "Whether to use online authentication")
+                        .withRequiredArg()
+                        .ofType(Boolean.class)
+                        .describedAs("Authentication");
 
-	            acceptsAll(asList("s", "size", "max-players"), "Maximum amount of players")
-	                    .withRequiredArg()
-	                    .ofType(Integer.class)
-	                    .describedAs("Server size");
-	        }
-	    };
+                acceptsAll(asList("s", "size", "max-players"), "Maximum amount of players")
+                        .withRequiredArg()
+                        .ofType(Integer.class)
+                        .describedAs("Server size");
+
+                acceptsAll(asList("d", "date-format"), "Format of the date to display in the console (for log entries)")
+                        .withRequiredArg()
+                        .ofType(SimpleDateFormat.class)
+                        .describedAs("Log date format");
+
+                acceptsAll(asList("b", "bukkit-settings"), "File for bukkit settings")
+                        .withRequiredArg()
+                        .ofType(File.class)
+                        .defaultsTo(new File("bukkit.yml"))
+                        .describedAs("Yml file");
+            }
+        };
 
 	    OptionSet options = null;
 
 	    try {
 	        options = parser.parse(args);
 	    } catch (joptsimple.OptionException ex) {
-	        Logger.getLogger(Crafty.class.getName()).log(Level.SEVERE, ex.getLocalizedMessage());
+	        this.cLog.log(Level.SEVERE, ex.getLocalizedMessage());
 	    }
 
 	    if ((options == null) || (options.has("?"))) {
 	        try {
 	            parser.printHelpOn(System.out);
 	        } catch (IOException ex) {
-	            Logger.getLogger(Crafty.class.getName()).log(Level.SEVERE, null, ex);
+	            this.cLog.log(Level.SEVERE, null, ex);
 	        }
 	    } else {
 			// Start the server
@@ -624,7 +655,13 @@ public class Crafty extends JFrame {
 				boolean portTaken = true;
 				int port = 25565;
 				if(options.has("server-port")) {
-					port = (Integer)options.valueOf("port"); 
+					port = (Integer)options.valueOf("server-port"); 
+				}
+				else
+				{
+					// Parse properties file and check for specified port
+					PropertyManager pm = new PropertyManager(options);
+					port = pm.getInt("server-port", 25565); // WARNING: Internals Access
 				}
 				int portWaitTime = 0;
 				while(portTaken == true && portWaitTime < 5000)
@@ -653,7 +690,7 @@ public class Crafty extends JFrame {
 					return;
 				}
 				
-				// Create the minecraft server
+				// Create the Minecraft server
 	            ms = new MinecraftServer(options);
 	            
 	            // Create our own ThreadServerApplication
@@ -667,7 +704,7 @@ public class Crafty extends JFrame {
 	            
 	            logger = Logger.getLogger("Minecraft");
 	        } catch (Exception exception) {
-	            MinecraftServer.a.log(Level.SEVERE, "Failed to start the minecraft server", exception);
+	            MinecraftServer.log.log(Level.SEVERE, "Failed to start the minecraft server", exception);
 	        }
 	    }
 	}
@@ -775,12 +812,20 @@ public class Crafty extends JFrame {
 		{
 			this.logMsg("Exiting! Waiting for server to stop...");
 			
+			// Prevent server from killing application
+			Crafty.forbidSystemExitCall();
+			
 			Crafty.queueConsoleCommand("stop");
 			try {
 				if(tsa.isAlive())
 				{
 					tsa.join();
 				}
+				
+				// Re-enable system exit call and exit
+				Crafty.enableSystemExitCall();
+				
+				this.logMsg("Server has stopped. Exiting.");
 				System.exit(0);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -803,7 +848,12 @@ public class Crafty extends JFrame {
 		try {
 			timestamp = df.format(new Date());
 		} catch (Exception e) { /* No timestamp or bad format */ }
-		this.prepAndPrintText(timestamp + " [CRAFTY] " + m + "\n");
+		
+		// Build final output string
+		String output = timestamp + " [CRAFTY] " + m + "\n";
+		
+		// Print to screen
+		this.prepAndPrintText(output);
 	}
 	
 	/*
@@ -845,8 +895,9 @@ public class Crafty extends JFrame {
             logger.info("IllegalAccessException");
             return;
         }
-        if ((!ms.g) && (MinecraftServer.a(ms))) {
-            ms.a(cmd, ms);
+        
+        if ((!ms.isStopped) && (MinecraftServer.isRunning(ms))) {
+        	ms.issueCommand(cmd, ms);
         }
     }
 	
@@ -878,7 +929,11 @@ public class Crafty extends JFrame {
 	 */
 	public void prepAndPrintText(String text)
 	{
+		// Save to log
+		this.cLog.log(Level.ALL, text);
+		
 		// Parse timestamp
+		// TODO: Get DateFormat from server.properties
 		String timestamp = "";
 		if(text.length() >= 20)
 		{
@@ -913,8 +968,13 @@ public class Crafty extends JFrame {
 			{
 				doc.setCharacterAttributes(len, 20, tm.getCurrentTheme().getAttributeSet(Theme.SYNTAX_TIMESTAMP), false);
 			}
+			
+			// Scroll to end
+			serverOutput.setCaretPosition(doc.getLength());
 		} catch (BadLocationException e) {
-			// TODO Auto-generated catch block
+			// TODO: Handle server output failure
+			// Not a critical failure, but GUI output is likely broken until
+			// restart and we need a way to alert the user
 			e.printStackTrace();
 		}
 	}
@@ -942,6 +1002,14 @@ public class Crafty extends JFrame {
 	public void setTheme(String name)
 	{
 		tm.setCurrentTheme(name);
+		this.refreshTheme();
+	}
+	
+	/*
+	 * refreshTheme handles the visual refresh when switching themes or changing font size
+	 */
+	public void refreshTheme()
+	{
 		StyledDocument doc = serverOutput.getStyledDocument();
 		try {
 			// Get current document text

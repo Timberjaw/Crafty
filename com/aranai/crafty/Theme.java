@@ -17,6 +17,8 @@ public class Theme {
 	public static final String SYNTAX_SEVERE = "Syntax.Severe";
 	public static final String SYNTAX_CRAFTY = "Syntax.Crafty";
 	
+	public static final String[] fonts = { TEXT_BASE, SYNTAX_TIMESTAMP, SYNTAX_INFO, SYNTAX_WARNING, SYNTAX_SEVERE, SYNTAX_CRAFTY };
+	
 	private String name;
 	private String desc;
 	private MutableAttributeSet m;
@@ -158,6 +160,43 @@ public class Theme {
 		this.addFont(Theme.SYNTAX_WARNING, f);
 		this.addFont(Theme.SYNTAX_SEVERE, f);
 		this.addFont(Theme.SYNTAX_CRAFTY, f);
+	}
+	
+	public void adjustFontSizeByFactor(float factor)
+	{
+		// Adjust the size for each font by multiplying its size by the specified factor
+		for(String s : Theme.fonts)
+		{
+			Font f = this.getFont(s);
+			float value = Math.round(f.getSize() * factor);
+			
+			Font f2 = f.deriveFont(value);
+			this.addFont(s, f2);
+		}
+	}
+	
+	public void adjustFontSizeByAmount(float amount)
+	{
+		// Adjust the size for each font by multiplying its size by the specified factor
+		for(String s : Theme.fonts)
+		{
+			Font f = this.getFont(s);
+			float value = f.getSize() + amount;
+			
+			Font f2 = f.deriveFont(value);
+			this.addFont(s, f2);
+		}
+	}
+	
+	public void setFontSize(float size)
+	{
+		// Set the size for each font to a fixed value
+		for(String s : Theme.fonts)
+		{
+			Font f = this.getFont(s);
+			Font f2 = f.deriveFont(size);
+			this.addFont(s, f2);
+		}
 	}
 	
 	public SimpleAttributeSet getAttributeSet(String name)
