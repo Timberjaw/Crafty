@@ -70,7 +70,7 @@ public class Crafty extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final String Version = "v0.7.2";
+	private static final String Version = "v0.7.3";
 	
 	private static Crafty instance;
 	
@@ -719,6 +719,7 @@ public class Crafty extends JFrame {
 		{
 			this.logMsg("Stopping server...");
 			
+			// Schedule shutdown task
 			new Timer().schedule( 
 			        new java.util.TimerTask() {
 			            @Override
@@ -867,6 +868,12 @@ public class Crafty extends JFrame {
 		{
 			Crafty.instance().parseCraftyCommand(cmd);
 			return;
+		}
+		
+		// Handle 'stop' command
+		if(cmd.startsWith("stop"))
+		{
+			Crafty.instance().kickAll("Shutting down.");
 		}
 		
 		if(!Crafty.instance().serverOn) { return; }
@@ -1120,6 +1127,14 @@ public class Crafty extends JFrame {
 		} catch (IOException e) {
 			e.printStackTrace();
 			this.logMsg("ERROR: Failed to restart!");
+		}
+	}
+	
+	private void kickAll(String reason)
+	{
+		for(Player p : this.ms.server.getOnlinePlayers())
+		{
+			p.kickPlayer(reason);
 		}
 	}
 }
