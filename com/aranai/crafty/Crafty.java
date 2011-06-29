@@ -58,6 +58,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
 import org.bukkit.craftbukkit.CraftServer;
+import org.bukkit.craftbukkit.Main;
 import org.bukkit.entity.Player;
 
 import net.minecraft.server.MinecraftServer;
@@ -118,6 +119,7 @@ public class Crafty extends JFrame {
 	 */
 	private String[] args;
 	private String argString;
+	public static boolean useJline = false;
 	protected volatile boolean serverOn;
 	protected volatile boolean isLoading;
 	protected volatile boolean isRestarting;
@@ -367,7 +369,7 @@ public class Crafty extends JFrame {
         // Show window
 		setVisible(true);
 		
-		// Capture system.out and system.err
+		// Capture system.in, system.out and system.err
 		this.redirectSystemStreams();
 		
 		// Get performance monitor
@@ -544,26 +546,25 @@ public class Crafty extends JFrame {
 	
 	// Capture system.out and system.err
 	private void redirectSystemStreams() {
-	  out = new OutputStream() {
-	    @Override  
-	    public void write(int b) throws IOException {  
-	      updateTextArea(String.valueOf((char) b));  
-	    }  
-	  
-	    @Override  
-	    public void write(byte[] b, int off, int len) throws IOException {  
-	      updateTextArea(new String(b, off, len));  
-	    }  
-	  
-	    @Override  
-	    public void write(byte[] b) throws IOException {  
-	      write(b, 0, b.length);  
-	    }  
-	  };
-	  
-	  byte[] buf = "".getBytes();
-	  in = new ByteArrayInputStream(buf);
-	  
+		out = new OutputStream() {
+			@Override  
+			public void write(int b) throws IOException {  
+				updateTextArea(String.valueOf((char) b));  
+			}  
+			
+			@Override  
+			public void write(byte[] b, int off, int len) throws IOException {  
+				updateTextArea(new String(b, off, len));  
+			}  
+			
+			@Override  
+			public void write(byte[] b) throws IOException {  
+				write(b, 0, b.length);  
+			}  
+		};
+  
+		byte[] buf = "".getBytes();
+		in = new ByteArrayInputStream(buf);
 		//System.setOut(new PrintStream(out, true));  
 		System.setErr(new PrintStream(out, true)); // Wat.
 		System.setIn(in);
@@ -630,6 +631,8 @@ public class Crafty extends JFrame {
                         .ofType(File.class)
                         .defaultsTo(new File("bukkit.yml"))
                         .describedAs("Yml file");
+                
+                acceptsAll(asList("nojline"), "Disables jline and emulates the vanilla console");
             }
         };
 
@@ -637,6 +640,10 @@ public class Crafty extends JFrame {
 
 	    try {
 	        options = parser.parse(args);
+	        for(String s : options.nonOptionArguments())
+	        {
+	        	this.cLog.log(Level.ALL, "Arg: "+s);
+	        }
 	    } catch (joptsimple.OptionException ex) {
 	        this.cLog.log(Level.SEVERE, ex.getLocalizedMessage());
 	    }
@@ -689,6 +696,18 @@ public class Crafty extends JFrame {
 					this.logMsg("Could not start server because port " + port + " is still unavailable. You can try restarting again with .crafty start or check for other applications using this port.");
 					return;
 				}
+				
+				// Handle jLine option
+				useJline = !"jline.UnsupportedTerminal".equals(System.getProperty("jline.terminal"));
+                
+                if (options.has("nojline")) {
+                    System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
+                    System.setProperty("user.language", "en");
+                    useJline = false;
+                    Main.useJline = useJline;
+                }
+                
+                this.cLog.log(Level.ALL, "Using JLine: " + ((useJline) ? "YES" : "NO"));
 				
 				// Create the Minecraft server
 	            ms = new MinecraftServer(options);
