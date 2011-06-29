@@ -71,7 +71,7 @@ public class Crafty extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final String Version = "v0.7.3";
+	private static final String Version = "v0.7.4";
 	
 	private static Crafty instance;
 	
