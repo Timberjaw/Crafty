@@ -52,8 +52,10 @@ import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultCaret;
 import javax.swing.text.StyledDocument;
 
+import jline.ConsoleReader;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
@@ -71,7 +73,7 @@ public class Crafty extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final String Version = "v0.7.4";
+	private static final String Version = "v0.7.6-PREVIEW";
 	
 	private static Crafty instance;
 	
@@ -224,7 +226,11 @@ public class Crafty extends JFrame {
 		serverOutput = new JTextPane();
 		serverOutput.setEditable(false);
 		serverOutput.setMargin(new Insets(5,5,5,5));
-		serverOutput.setContentType("text/html");
+		serverOutput.setContentType("text/html; charset=UTF-8");
+		
+		DefaultCaret caret = (DefaultCaret) serverOutput.getCaret();
+	    caret.setUpdatePolicy(DefaultCaret.NEVER_UPDATE);
+		
 		serverOutputScroller = new JScrollPane(serverOutput);
 		p.add(serverOutputScroller, BorderLayout.CENTER);
 		
@@ -564,7 +570,13 @@ public class Crafty extends JFrame {
 		};
   
 		byte[] buf = "".getBytes();
-		in = new ByteArrayInputStream(buf);
+		in = new ByteArrayInputStream(buf){
+			@Override
+			public int read()
+			{
+				return -1;
+			}
+		};
 		//System.setOut(new PrintStream(out, true));  
 		System.setErr(new PrintStream(out, true)); // Wat.
 		System.setIn(in);
@@ -625,6 +637,30 @@ public class Crafty extends JFrame {
                         .withRequiredArg()
                         .ofType(SimpleDateFormat.class)
                         .describedAs("Log date format");
+                
+                acceptsAll(asList("log-pattern"), "Specfies the log filename pattern")
+		                .withRequiredArg()
+		                .ofType(String.class)
+		                .defaultsTo("server.log")
+		                .describedAs("Log filename");
+
+		        acceptsAll(asList("log-limit"), "Limits the maximum size of the log file (0 = unlimited)")
+		                .withRequiredArg()
+		                .ofType(Integer.class)
+		                .defaultsTo(0)
+		                .describedAs("Max log size");
+		
+		        acceptsAll(asList("log-count"), "Specified how many log files to cycle through")
+		                .withRequiredArg()
+		                .ofType(Integer.class)
+		                .defaultsTo(1)
+		                .describedAs("Log count");
+		
+		        acceptsAll(asList("log-append"), "Whether to append to the log file")
+		                .withRequiredArg()
+		                .ofType(Boolean.class)
+		                .defaultsTo(true)
+		                .describedAs("Log append");
 
                 acceptsAll(asList("b", "bukkit-settings"), "File for bukkit settings")
                         .withRequiredArg()
@@ -711,6 +747,18 @@ public class Crafty extends JFrame {
 				
 				// Create the Minecraft server
 	            ms = new MinecraftServer(options);
+	            
+	            // Override the default ConsoleReader with our own bizarro version
+	            // Ours sits around for a bit and then returns null
+	            // Take that, Minecraft!
+	            ms.reader = new ConsoleReader(){
+	            	@Override
+					public String readLine() throws IOException
+	            	{
+	            		try { Thread.sleep(1000); } catch (InterruptedException e) { e.printStackTrace(); }
+	            		return null;
+	            	}
+	            };
 	            
 	            // Create our own ThreadServerApplication
 	            tsa = new ThreadServerApplication("Server thread", ms);
@@ -971,11 +1019,43 @@ public class Crafty extends JFrame {
 			} catch (Exception e) { /* No timestamp or bad format */ }
 		}
 		
+		// Parse color codes
+		char esc = '\033';
+		int find = text.indexOf(esc);
+		int end = 0;
+		//int color = -1;
+		while(find >= 0)
+		{
+			StringBuffer sb = new StringBuffer(text);
+			end = text.indexOf('m', find);
+			if(end < 0) { break; }
+			sb.replace(find, end+1, "");
+			
+			/*
+			 * Parse out color code if we want to use it for something
+			try
+			{
+				color = Integer.parseInt(sb.substring(find+2, end));
+			}catch(NumberFormatException e) { System.out.println("Err: " + sb.substring(find+2, end)); break; }
+			
+			sb.replace(find, end+1, "COLOR{"+color+"}");
+			*/
+			
+			text = sb.toString();
+			find = text.indexOf(esc);
+		}
+		
+		// Add timestamp back
 		text = timestamp+" "+text;
 		
 		try {
 			StyledDocument doc = serverOutput.getStyledDocument();
 			serverOutput.setBackground(tm.getCurrentTheme().getColor(Theme.BG_BASE));
+			
+			// Decide whether to scroll after this
+			int origScroll = serverOutputScroller.getVerticalScrollBar().getValue();
+			boolean doScroll = ((origScroll+serverOutputScroller.getVerticalScrollBar().getVisibleAmount()) == serverOutputScroller.getVerticalScrollBar().getMaximum());
+			
 			int len = doc.getLength();
 			doc.insertString(len, text, tm.getCurrentTheme().getAttributeSet(Theme.TEXT_BASE));
 			
@@ -996,7 +1076,14 @@ public class Crafty extends JFrame {
 			}
 			
 			// Scroll to end
-			serverOutput.setCaretPosition(doc.getLength());
+			if(doScroll)
+			{
+				SwingUtilities.invokeLater(new Runnable() {
+					public void run() {
+						serverOutputScroller.getVerticalScrollBar().setValue(serverOutputScroller.getVerticalScrollBar().getMaximum());
+					}
+				});
+			}
 		} catch (BadLocationException e) {
 			// TODO: Handle server output failure
 			// Not a critical failure, but GUI output is likely broken until
