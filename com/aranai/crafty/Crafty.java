@@ -65,6 +65,7 @@ import org.bukkit.entity.Player;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PropertyManager;
+import net.minecraft.server.StatisticList;
 import net.minecraft.server.ThreadServerApplication;
 
 public class Crafty extends JFrame {
@@ -73,7 +74,7 @@ public class Crafty extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final String Version = "v0.7.6-PREVIEW";
+	private static final String Version = "v0.7.6";
 	
 	private static Crafty instance;
 	
@@ -745,6 +746,9 @@ public class Crafty extends JFrame {
                 
                 this.cLog.log(Level.ALL, "Using JLine: " + ((useJline) ? "YES" : "NO"));
 				
+                // Initialize the StatisticsList; I don't know what it is or does, and this will break on new versions because Notchfuscation :(
+                StatisticList.a();
+                
 				// Create the Minecraft server
 	            ms = new MinecraftServer(options);
 	            
