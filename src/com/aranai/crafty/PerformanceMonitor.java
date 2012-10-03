@@ -13,8 +13,7 @@ public class PerformanceMonitor {
     
     static final Runtime runtime = Runtime.getRuntime ();
 
-    @SuppressWarnings("restriction")
-	public synchronized double getCpuUsage()
+    public synchronized double getCpuUsage()
     {
         if ( lastSystemTime == 0 )
         {
@@ -46,7 +45,6 @@ public class PerformanceMonitor {
 	    return (cpuUsage / availableProcessors) * 100.0;
 	}
 	
-	@SuppressWarnings("restriction")
 	private void baselineCounters()
 	{
 	    lastSystemTime = System.nanoTime();

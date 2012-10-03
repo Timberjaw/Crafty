@@ -55,15 +55,16 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
 import javax.swing.text.StyledDocument;
 
-import jline.console.ConsoleReader;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
+import org.bukkit.craftbukkit.libs.jline.console.ConsoleReader;
+import org.bukkit.craftbukkit.libs.joptsimple.OptionException;
+import org.bukkit.craftbukkit.libs.joptsimple.OptionParser;
+import org.bukkit.craftbukkit.libs.joptsimple.OptionSet;
 
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.Main;
 import org.bukkit.entity.Player;
 
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.DedicatedServer;
 import net.minecraft.server.PropertyManager;
 import net.minecraft.server.StatisticList;
 import net.minecraft.server.ThreadServerApplication;
@@ -109,8 +110,8 @@ public class Crafty extends JFrame {
 	protected JLabel statusMsg;
 	
 	protected JLabel activeUserLabel;
-	protected JList activeUserList;
-	protected DefaultListModel activeUserListModel;
+	protected JList<String> activeUserList;
+	protected DefaultListModel<String> activeUserListModel;
 	protected JScrollPane activeUserScroller;
 	protected JPopupMenu activeUserPopup;
 	
@@ -143,7 +144,7 @@ public class Crafty extends JFrame {
 	protected PerformanceMonitor pf;
 	protected OutputStream out;
 	protected ByteArrayInputStream in;
-	protected MinecraftServer ms;
+	protected DedicatedServer ms;
 	protected static Logger logger;
 	private ThreadServerApplication tsa;
 	private CraftyExceptionHandler eh;
@@ -274,8 +275,8 @@ public class Crafty extends JFrame {
         activeUserLabel.setPreferredSize(new Dimension(190, 24));
         commandPanel.add(activeUserLabel);
         
-        activeUserListModel = new DefaultListModel();
-		activeUserList = new JList(activeUserListModel);
+        activeUserListModel = new DefaultListModel<String>();
+		activeUserList = new JList<String>(activeUserListModel);
 		activeUserListModel.addElement("Nobody");
 		activeUserList.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
 		activeUserList.setLayoutOrientation(JList.VERTICAL);
@@ -681,7 +682,7 @@ public class Crafty extends JFrame {
 	        {
 	        	this.cLog.log(Level.ALL, "Arg: "+s);
 	        }
-	    } catch (joptsimple.OptionException ex) {
+	    } catch (OptionException ex) {
 	        this.cLog.log(Level.SEVERE, ex.getLocalizedMessage());
 	    }
 
@@ -750,7 +751,7 @@ public class Crafty extends JFrame {
                 StatisticList.a();
                 
 				// Create the Minecraft server
-	            ms = new MinecraftServer(options);
+	            ms = new DedicatedServer(options);
 	            
 	            // Override the default ConsoleReader with our own bizarro version
 	            // Ours sits around for a bit and then returns null
@@ -765,7 +766,7 @@ public class Crafty extends JFrame {
 	            };
 	            
 	            // Create our own ThreadServerApplication
-	            tsa = new ThreadServerApplication("Server thread", ms);
+	            tsa = new ThreadServerApplication(ms, "Server thread");
 	            
 	            // Catch exceptions from the TSA ourselves (mainly used to catch system.exit() events)
 	            tsa.setUncaughtExceptionHandler(eh);
@@ -775,7 +776,7 @@ public class Crafty extends JFrame {
 	            
 	            logger = Logger.getLogger("Minecraft");
 	        } catch (Exception exception) {
-	            MinecraftServer.log.log(Level.SEVERE, "Failed to start the minecraft server", exception);
+	            DedicatedServer.log.log(Level.SEVERE, "Failed to start the minecraft server", exception);
 	        }
 	    }
 	}
@@ -962,10 +963,10 @@ public class Crafty extends JFrame {
             logger.info("SecurityException");
             return;
         }
-        MinecraftServer ms;
+        DedicatedServer ms;
         try {
             f.setAccessible(true);
-            ms = (MinecraftServer) f.get(cs);
+            ms = (DedicatedServer) f.get(cs);
         } catch (IllegalArgumentException ex) {
             logger.info("IllegalArgumentException");
             return;
@@ -974,7 +975,7 @@ public class Crafty extends JFrame {
             return;
         }
         
-        if ((!ms.isStopped) && (MinecraftServer.isRunning(ms))) {
+        if ((!ms.isStopped()) && (ms.isRunning())) {
         	ms.issueCommand(cmd, ms);
         }
     }
@@ -1062,6 +1063,7 @@ public class Crafty extends JFrame {
 			
 			int len = doc.getLength();
 			doc.insertString(len, text, tm.getCurrentTheme().getAttributeSet(Theme.TEXT_BASE));
+			doc.insertString(len, "", tm.getCurrentTheme().getAttributeSet(Theme.TEXT_BASE)); //TODO test: this should prevent any lines that drop a reset code from bleeding into the rest of the console.
 			
 			// Style bracketed log indicators
 			int at = text.indexOf("[INFO]");
@@ -1072,7 +1074,9 @@ public class Crafty extends JFrame {
 			if(at >= 0) { doc.setCharacterAttributes(len+at, 8, tm.getCurrentTheme().getAttributeSet(Theme.SYNTAX_SEVERE), false); }
 			at = text.indexOf("[CRAFTY]");
 			if(at >= 0) { doc.setCharacterAttributes(len+at, 8, tm.getCurrentTheme().getAttributeSet(Theme.SYNTAX_CRAFTY), false); }
-			
+
+			//TODO color codes here
+
 			// Style timestamp
 			if(timestamp.length() > 0)
 			{
