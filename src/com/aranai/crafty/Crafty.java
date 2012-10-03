@@ -55,9 +55,10 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
 import javax.swing.text.StyledDocument;
 
-import jline.console.ConsoleReader;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
+import org.bukkit.craftbukkit.libs.jline.console.ConsoleReader;
+import org.bukkit.craftbukkit.libs.joptsimple.OptionException;
+import org.bukkit.craftbukkit.libs.joptsimple.OptionParser;
+import org.bukkit.craftbukkit.libs.joptsimple.OptionSet;
 
 import org.bukkit.craftbukkit.CraftServer;
 import org.bukkit.craftbukkit.Main;
@@ -681,7 +682,7 @@ public class Crafty extends JFrame {
 	        {
 	        	this.cLog.log(Level.ALL, "Arg: "+s);
 	        }
-	    } catch (joptsimple.OptionException ex) {
+	    } catch (OptionException ex) {
 	        this.cLog.log(Level.SEVERE, ex.getLocalizedMessage());
 	    }
 
