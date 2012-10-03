@@ -1062,6 +1062,7 @@ public class Crafty extends JFrame {
 			
 			int len = doc.getLength();
 			doc.insertString(len, text, tm.getCurrentTheme().getAttributeSet(Theme.TEXT_BASE));
+			doc.insertString(len, "", tm.getCurrentTheme().getAttributeSet(Theme.TEXT_BASE)); //TODO test: this should prevent any lines that drop a reset code from bleeding into the rest of the console.
 			
 			// Style bracketed log indicators
 			int at = text.indexOf("[INFO]");
@@ -1072,7 +1073,9 @@ public class Crafty extends JFrame {
 			if(at >= 0) { doc.setCharacterAttributes(len+at, 8, tm.getCurrentTheme().getAttributeSet(Theme.SYNTAX_SEVERE), false); }
 			at = text.indexOf("[CRAFTY]");
 			if(at >= 0) { doc.setCharacterAttributes(len+at, 8, tm.getCurrentTheme().getAttributeSet(Theme.SYNTAX_CRAFTY), false); }
-			
+
+			//TODO color codes here
+
 			// Style timestamp
 			if(timestamp.length() > 0)
 			{
