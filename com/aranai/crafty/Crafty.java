@@ -9,15 +9,16 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseListener;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.ByteArrayInputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.lang.reflect.Field;
-import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.security.Permission;
 import java.text.DateFormat;
@@ -55,18 +56,8 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
 import javax.swing.text.StyledDocument;
 
-import jline.console.ConsoleReader;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-
-import org.bukkit.craftbukkit.CraftServer;
-import org.bukkit.craftbukkit.Main;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.PropertyManager;
-import net.minecraft.server.StatisticList;
-import net.minecraft.server.ThreadServerApplication;
 
 public class Crafty extends JFrame {
 
@@ -74,7 +65,7 @@ public class Crafty extends JFrame {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static final String Version = "v0.7.7";
+	private static final String Version = "v0.8.0";
 	
 	private static Crafty instance;
 	
@@ -143,10 +134,15 @@ public class Crafty extends JFrame {
 	protected PerformanceMonitor pf;
 	protected OutputStream out;
 	protected ByteArrayInputStream in;
-	protected MinecraftServer ms;
 	protected static Logger logger;
-	private ThreadServerApplication tsa;
-	private CraftyExceptionHandler eh;
+	//private CraftyExceptionHandler eh;
+	
+	protected Process bukkit;
+	private InputStream is;
+	private OutputStream os;
+	private BufferedWriter writer;
+	
+	protected HelperClient helper;
 
 	public static void main(String args[]) {
 		try {
@@ -198,6 +194,9 @@ public class Crafty extends JFrame {
 			argString = sb.substring(0, sb.length()-2);
 		}
 		
+		// Load helper
+        helper = new HelperClient();
+		
 		// Set frame options
 		this.setTitle("Crafty "+Crafty.Version);
 		this.setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/icon.png")));
@@ -212,7 +211,7 @@ public class Crafty extends JFrame {
 		cm = new CommandManager(this);
 		
 		// Set up exception handler
-		eh = new CraftyExceptionHandler();
+		//eh = new CraftyExceptionHandler();
 		
 		// Create panels
 		window = new JPanel(new BorderLayout());
@@ -430,11 +429,6 @@ public class Crafty extends JFrame {
 	private static void enableSystemExitCall() {
 		System.setSecurityManager( null ) ;
 	}
-
-	// asList converts a series of strings to a List
-	private static List<String> asList(String... params) {
-	    return Arrays.asList(params);
-	}
 	
 	// Get instance
 	public static Crafty instance()
@@ -477,38 +471,38 @@ public class Crafty extends JFrame {
 	private void updatePlayerList()
 	{
 		// Clear the player list and return if the server is inactive
-		if(!this.serverOn) { activeUserListModel.clear(); return; }
+		if(!this.serverOn || !helper.isActive) { activeUserListModel.clear(); return; }
 		
-		if(ms == null || ms.server == null) { return; }
-		Player[] players = ms.server.getOnlinePlayers();
-		String[] playerNames = new String[players.length];
-		if(players.length == 0)
+		String response = helper.sendCommand(HelperCommands.GETPLAYERLIST);
+		
+		if(response != null)
 		{
-			activeUserListModel.clear();
-		}
-		else
-		{
-			// Add new players
-			int i = 0;
-			for(Player p : players)
-			{
-				if(!activeUserListModel.contains(p.getName()))
-				{
-					activeUserListModel.addElement(p.getName());
-				}
-				playerNames[i] = p.getName();
-				i++;
-			}
-			
-			// Remove disconnected players
-			List<String> pList = Arrays.asList(playerNames);
-			for(Object p : activeUserListModel.toArray())
-			{
-				if(!pList.contains((String)p))
-				{
-					activeUserListModel.removeElement((String)p);
-				}
-			}
+    		String[] playerNames = response.split(":");
+    		if(playerNames.length == 0)
+    		{
+    			activeUserListModel.clear();
+    		}
+    		else
+    		{
+    			// Add new players
+    			for(int i = 0; i < playerNames.length; i++)
+    			{
+    				if(!activeUserListModel.contains(playerNames[i]))
+    				{
+    					activeUserListModel.addElement(playerNames[i]);
+    				}
+    			}
+    			
+    			// Remove disconnected players
+    			List<String> pList = Arrays.asList(playerNames);
+    			for(Object p : activeUserListModel.toArray())
+    			{
+    				if(!pList.contains((String)p))
+    				{
+    					activeUserListModel.removeElement((String)p);
+    				}
+    			}
+    		}
 		}
 	}
 	
@@ -517,7 +511,7 @@ public class Crafty extends JFrame {
 	{
 		// Return if server is not on
 		if(!this.serverOn) {
-			if(!this.isRestarting && ms != null && ms.server != null && ms.server.getWorlds() != null && ms.server.getWorlds().size() > 0)
+			if(!this.isRestarting && bukkit != null)// && Bukkit.getServer() != null)
 			{
 				this.serverOn = true;
 				this.isLoading = false;
@@ -534,14 +528,9 @@ public class Crafty extends JFrame {
 		// Get CPU usage
 		String cpu = new DecimalFormat("#.##").format(pf.getCpuUsage());
 		
-		if(this.serverOn) {
+		if(serverOn && helper.isActive) {
 			// Get CraftBukkit build
-			String cbVer = "Unknown";
-			String cbName = "Unknown";
-			cbVer = ms.server.getVersion();
-			cbName = ms.server.getWorlds().get(0).getName();
-			
-			statusMsg.setText("CraftBukkit Version: "+cbVer+" | World: "+cbName+" | Args: "+this.argString);
+			statusMsg.setText(helper.sendCommand(HelperCommands.GETVERSION));
 		}
 		
 		perfMonText.setText(
@@ -553,6 +542,7 @@ public class Crafty extends JFrame {
 	
 	// Capture system.out and system.err
 	private void redirectSystemStreams() {
+	    
 		out = new OutputStream() {
 			@Override  
 			public void write(int b) throws IOException {  
@@ -578,7 +568,8 @@ public class Crafty extends JFrame {
 				return -1;
 			}
 		};
-		//System.setOut(new PrintStream(out, true));  
+		//System.setOut(new PrintStream(out, true));
+		
 		System.setErr(new PrintStream(out, true)); // Wat.
 		System.setIn(in);
 	}
@@ -591,193 +582,63 @@ public class Crafty extends JFrame {
 	{
 		String[] args = this.args;
 		
-		// Parse options
-		// Option parsing code taken from: org/bukkit/craftbukkit/Main.java
-		OptionParser parser = new OptionParser() {
-            {
-                acceptsAll(asList("?", "help"), "Show the help");
+		final String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+        File currentJar = new File("craftbukkit.jar");
 
-                acceptsAll(asList("c", "config"), "Properties file to use")
-                        .withRequiredArg()
-                        .ofType(File.class)
-                        .defaultsTo(new File("server.properties"))
-                        .describedAs("Properties file");
+        /* is it a jar file? */
+        if(!currentJar.getName().endsWith(".jar"))
+        {
+            this.logMsg("ERROR: Current application is not a .jar, cannot restart.");
+            return;
+        }
 
-                acceptsAll(asList("P", "plugins"), "Plugin directory to use")
-                        .withRequiredArg()
-                        .ofType(File.class)
-                        .defaultsTo(new File("plugins"))
-                        .describedAs("Plugin directory");
-
-                acceptsAll(asList("h", "host", "server-ip"), "Host to listen on")
-                        .withRequiredArg()
-                        .ofType(String.class)
-                        .describedAs("Hostname or IP");
-
-                acceptsAll(asList("w", "world", "level-name"), "World directory")
-                        .withRequiredArg()
-                        .ofType(String.class)
-                        .describedAs("World dir");
-
-                acceptsAll(asList("p", "port", "server-port"), "Port to listen on")
-                        .withRequiredArg()
-                        .ofType(Integer.class)
-                        .describedAs("Port");
-
-                acceptsAll(asList("o", "online-mode"), "Whether to use online authentication")
-                        .withRequiredArg()
-                        .ofType(Boolean.class)
-                        .describedAs("Authentication");
-
-                acceptsAll(asList("s", "size", "max-players"), "Maximum amount of players")
-                        .withRequiredArg()
-                        .ofType(Integer.class)
-                        .describedAs("Server size");
-
-                acceptsAll(asList("d", "date-format"), "Format of the date to display in the console (for log entries)")
-                        .withRequiredArg()
-                        .ofType(SimpleDateFormat.class)
-                        .describedAs("Log date format");
-                
-                acceptsAll(asList("log-pattern"), "Specfies the log filename pattern")
-		                .withRequiredArg()
-		                .ofType(String.class)
-		                .defaultsTo("server.log")
-		                .describedAs("Log filename");
-
-		        acceptsAll(asList("log-limit"), "Limits the maximum size of the log file (0 = unlimited)")
-		                .withRequiredArg()
-		                .ofType(Integer.class)
-		                .defaultsTo(0)
-		                .describedAs("Max log size");
+        /* Build command: java -jar application.jar */
+        final ArrayList<String> command = new ArrayList<String>();
+        command.add(javaBin);
+        
+        // Add java args
+        RuntimeMXBean RuntimemxBean = ManagementFactory.getRuntimeMXBean();
+        Object[] tmpOptsObj = RuntimemxBean.getInputArguments().toArray();
+        for(Object s : tmpOptsObj)
+        {
+            command.add(s.toString());
+        }
+        
+        // Add jar
+        command.add("-jar");
+        command.add(currentJar.getAbsolutePath());
+        command.add("nogui");
+        
+        // Add Crafty / CraftBukkit / Minecraft_Server args
+        for(String s : this.args)
+        {
+            command.add(s);
+        }
 		
-		        acceptsAll(asList("log-count"), "Specified how many log files to cycle through")
-		                .withRequiredArg()
-		                .ofType(Integer.class)
-		                .defaultsTo(1)
-		                .describedAs("Log count");
-		
-		        acceptsAll(asList("log-append"), "Whether to append to the log file")
-		                .withRequiredArg()
-		                .ofType(Boolean.class)
-		                .defaultsTo(true)
-		                .describedAs("Log append");
-
-                acceptsAll(asList("b", "bukkit-settings"), "File for bukkit settings")
-                        .withRequiredArg()
-                        .ofType(File.class)
-                        .defaultsTo(new File("bukkit.yml"))
-                        .describedAs("Yml file");
-                
-                acceptsAll(asList("nojline"), "Disables jline and emulates the vanilla console");
-            }
-        };
-
-	    OptionSet options = null;
-
-	    try {
-	        options = parser.parse(args);
-	        for(String s : options.nonOptionArguments())
-	        {
-	        	this.cLog.log(Level.ALL, "Arg: "+s);
-	        }
-	    } catch (joptsimple.OptionException ex) {
-	        this.cLog.log(Level.SEVERE, ex.getLocalizedMessage());
-	    }
-
-	    if ((options == null) || (options.has("?"))) {
-	        try {
-	            parser.printHelpOn(System.out);
-	        } catch (IOException ex) {
-	            this.cLog.log(Level.SEVERE, null, ex);
-	        }
-	    } else {
-			// Start the server
-			try {
-				// Check port availability
-				// If we're restarting, it may not have been freed yet
-				boolean portTaken = true;
-				int port = 25565;
-				if(options.has("server-port")) {
-					port = (Integer)options.valueOf("server-port"); 
-				}
-				else
-				{
-					// Parse properties file and check for specified port
-					PropertyManager pm = new PropertyManager(options);
-					port = pm.getInt("server-port", 25565); // WARNING: Internals Access
-				}
-				int portWaitTime = 0;
-				while(portTaken == true && portWaitTime < 5000)
-				{
-					ServerSocket socket = null;
-					try {
-					    socket = new ServerSocket(port);
-					    portTaken = false;
-					} catch (IOException e) {
-						this.logMsg("Port "+port+" is unavailable, waiting...");
-						synchronized(this)
-						{
-							this.wait(1000);
-						}
-						portWaitTime += 1000;
-					} finally { 
-					    // Clean up
-					    if (socket != null) socket.close();
-					}
-				}
-				
-				// Make sure port was available
-				if(portTaken)
-				{
-					this.logMsg("Could not start server because port " + port + " is still unavailable. You can try restarting again with .crafty start or check for other applications using this port.");
-					return;
-				}
-				
-				// Handle jLine option
-				useJline = !"jline.UnsupportedTerminal".equals(System.getProperty("jline.terminal"));
-                
-                if (options.has("nojline")) {
-                    System.setProperty("jline.terminal", "jline.UnsupportedTerminal");
-                    System.setProperty("user.language", "en");
-                    useJline = false;
-                    Main.useJline = useJline;
-                }
-                
-                this.cLog.log(Level.ALL, "Using JLine: " + ((useJline) ? "YES" : "NO"));
-				
-                // Initialize the StatisticsList; I don't know what it is or does, and this will break on new versions because Notchfuscation :(
-                StatisticList.a();
-                
-				// Create the Minecraft server
-	            ms = new MinecraftServer(options);
-	            
-	            // Override the default ConsoleReader with our own bizarro version
-	            // Ours sits around for a bit and then returns null
-	            // Take that, Minecraft!
-	            ms.reader = new ConsoleReader(){
-	            	@Override
-					public String readLine() throws IOException
-	            	{
-	            		try { Thread.sleep(1000); } catch (InterruptedException e) { e.printStackTrace(); }
-	            		return null;
-	            	}
-	            };
-	            
-	            // Create our own ThreadServerApplication
-	            tsa = new ThreadServerApplication("Server thread", ms);
-	            
-	            // Catch exceptions from the TSA ourselves (mainly used to catch system.exit() events)
-	            tsa.setUncaughtExceptionHandler(eh);
-	            
-	            // Start the TSA
-	            tsa.start();
-	            
-	            logger = Logger.getLogger("Minecraft");
-	        } catch (Exception exception) {
-	            MinecraftServer.log.log(Level.SEVERE, "Failed to start the minecraft server", exception);
-	        }
-	    }
+		final ProcessBuilder builder = new ProcessBuilder(command);
+		builder.redirectErrorStream(true);
+		this.prepAndPrintText(command.toString());
+        try {
+            // Launch the new process
+            bukkit = builder.start();
+            is = bukkit.getInputStream();
+            os = bukkit.getOutputStream();
+            
+            StreamReader lsr = new StreamReader(is);
+            Thread is_thread = new Thread(lsr, "StreamReader");
+            is_thread.start();
+            
+            this.writer = new BufferedWriter(new OutputStreamWriter(os));
+            
+            //StreamWriter lsw = new StreamWriter(os);
+            //Thread os_thread = new Thread(lsw, "StreamWriter");
+            //os_thread.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+            this.logMsg("ERROR: Failed to start!");
+        }
+        
+        logger = Logger.getLogger("Minecraft");
 	}
 	
 	/*
@@ -802,17 +663,11 @@ public class Crafty extends JFrame {
 							// Stop the server
 							Crafty.queueConsoleCommand("stop");
 							
-							try {
-								if(tsa.isAlive())
-								{
-									tsa.join();
-								}	
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
+							// Wait for process to terminate
+							try { bukkit.waitFor(); } catch (InterruptedException e) { e.printStackTrace(); }
 							
-							// Re-enable exit calls
-							Crafty.enableSystemExitCall();
+							// Confirm server has stopped
+							Crafty.instance().stopServerDone();
 							
 							// Cancel self
 							this.cancel();
@@ -889,10 +744,7 @@ public class Crafty extends JFrame {
 			
 			Crafty.queueConsoleCommand("stop");
 			try {
-				if(tsa.isAlive())
-				{
-					tsa.join();
-				}
+			    bukkit.waitFor();
 				
 				// Re-enable system exit call and exit
 				Crafty.enableSystemExitCall();
@@ -941,41 +793,14 @@ public class Crafty extends JFrame {
 			return;
 		}
 		
-		// Handle 'stop' command
-		if(cmd.startsWith("stop"))
-		{
-			Crafty.instance().kickAll("Shutting down.");
-		}
-		
 		if(!Crafty.instance().serverOn) { return; }
 		
-		// Credit: http://forums.bukkit.org/threads/send-commands-to-console.3241
-		// Note: this is likely to break on Minecraft server updates
-        CraftServer cs = Crafty.instance().ms.server;
-        Field f;
-        try {
-            f = CraftServer.class.getDeclaredField("console");
-        } catch (NoSuchFieldException ex) {
-            logger.info("NoSuchFieldException");
-            return;
-        } catch (SecurityException ex) {
-            logger.info("SecurityException");
-            return;
-        }
-        MinecraftServer ms;
-        try {
-            f.setAccessible(true);
-            ms = (MinecraftServer) f.get(cs);
-        } catch (IllegalArgumentException ex) {
-            logger.info("IllegalArgumentException");
-            return;
-        } catch (IllegalAccessException ex) {
-            logger.info("IllegalAccessException");
-            return;
-        }
-        
-        if ((!ms.isStopped) && (MinecraftServer.isRunning(ms))) {
-        	ms.issueCommand(cmd, ms);
+		try {
+		    Crafty.instance().writer.write(cmd+"\n");
+		    Crafty.instance().writer.flush();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
 	
@@ -1009,6 +834,14 @@ public class Crafty extends JFrame {
 	{
 		// Save to log
 		this.cLog.log(Level.ALL, text);
+		
+		// Check for helper load
+		if(!helper.isActive && text.contains("[CraftyHelper]"))
+		{
+		    // Start helper
+		    helper.start();
+		    this.logMsg(helper.sendCommand("Ding"));
+		}
 		
 		// Parse timestamp
 		// TODO: Get DateFormat from server.properties
@@ -1230,21 +1063,15 @@ public class Crafty extends JFrame {
 		final ProcessBuilder builder = new ProcessBuilder(command);
 		try {
 			// Launch the new process
-			builder.start();
+			bukkit = builder.start();
+			is = bukkit.getInputStream();
+			os = bukkit.getOutputStream();
 			
 			// Exit
 			System.exit(0);
 		} catch (IOException e) {
 			e.printStackTrace();
 			this.logMsg("ERROR: Failed to restart!");
-		}
-	}
-	
-	private void kickAll(String reason)
-	{
-		for(Player p : this.ms.server.getOnlinePlayers())
-		{
-			p.kickPlayer(reason);
 		}
 	}
 }

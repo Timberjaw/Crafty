@@ -5,8 +5,6 @@ import java.awt.event.ActionListener;
 
 import javax.swing.JMenuItem;
 
-import org.bukkit.entity.Player;
-
 public class ActiveUserActionListener implements ActionListener {
 	private Crafty c;
 	
@@ -50,15 +48,7 @@ public class ActiveUserActionListener implements ActionListener {
 		// Get IP address (display in console)
 		if(cmd.equals(Crafty.UserActions.GETIP))
 		{
-			Player p = c.ms.server.getPlayer(player);
-			if(p != null)
-			{
-				c.logMsg("[Crafty] Player "+player+" has IP: "+p.getAddress().toString());
-			}
-			else
-			{
-				c.logMsg("[Crafty] Could not find player "+player);
-			}
+		    c.logMsg(c.helper.sendCommand(HelperCommands.GETIP, player));
 			return;
 		}
 		

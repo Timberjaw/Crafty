@@ -92,6 +92,11 @@ public class CommandManager {
 				this.restart();
 				return;
 			}
+			if(this.cmdArgs[1].equalsIgnoreCase("helper"))
+			{
+			    this.c.logMsg( this.c.helper.sendCommand("DING") );
+			    return;
+			}
 			
 			// Bad command
 			c.logMsg("Unknown command.");
@@ -164,7 +169,7 @@ public class CommandManager {
 	private void start()
 	{
 		// Start the server
-		if(!this.c.serverOn && this.c.ms == null)
+		if(!this.c.serverOn && this.c.bukkit == null)
 		{
 			this.c.startServer();
 		}
