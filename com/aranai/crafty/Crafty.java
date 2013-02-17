@@ -11,6 +11,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseListener;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.Timer;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -56,9 +60,6 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
 import javax.swing.text.StyledDocument;
 
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-
 public class Crafty extends JFrame {
 
 	/**
@@ -80,6 +81,25 @@ public class Crafty extends JFrame {
 		public static final String GETIP = "Get IP";
 		public static final String OP = "Op";
 		public static final String DEOP = "DeOp";
+		public static final String MAP = "View on DynMap";
+	}
+	
+	public class Location {
+	    public String world;
+	    public double x;
+	    public double y;
+	    public double z;
+	    
+	    public Location(String w, double x, double y, double z)
+	    {
+	        this.world = w; this.x = x; this.y = y; this.z = z;
+	    }
+	    
+	    @Override
+	    public String toString()
+	    {
+	        return world+", "+x+", "+y+", "+z;
+	    }
 	}
 
 	/*
@@ -108,11 +128,12 @@ public class Crafty extends JFrame {
 	protected JLabel perfMonLabel;
 	protected JTextArea perfMonText;
 	
+	protected JMenuItem mapMenuItem;
+	
 	/*
 	 * Common fields
 	 */
 	private String[] args;
-	private String argString;
 	public static boolean useJline = false;
 	protected volatile boolean serverOn;
 	protected volatile boolean isLoading;
@@ -121,6 +142,7 @@ public class Crafty extends JFrame {
 	private int consoleLineCount;
 	private ThemeManager tm;
 	private CommandManager cm;
+	private Properties prop;
 	
 	/*
 	 * Logger
@@ -174,25 +196,15 @@ public class Crafty extends JFrame {
 			e1.printStackTrace();
 		}
 		
+		// Load property file
+		this.loadProperties();
+		
 		// Set common variables
 		this.args = args;
 		this.serverOn = false;
 		this.isLoading = true;
 		this.consoleLineLimit = 1000;
 		this.consoleLineCount = 0;
-		
-		// Get command line options and args
-		argString = "";
-		RuntimeMXBean RuntimemxBean = ManagementFactory.getRuntimeMXBean();
-		StringBuilder sb = new StringBuilder();
-		Object[] tmpOptsObj = RuntimemxBean.getInputArguments().toArray();
-		String[] tmpOpts = Arrays.copyOf(tmpOptsObj, tmpOptsObj.length, String[].class);
-		for(String s : tmpOpts) { sb.append(s+", "); }
-		for(String s : args) { sb.append(s+", "); }
-		if(sb.length() >= 2)
-		{
-			argString = sb.substring(0, sb.length()-2);
-		}
 		
 		// Load helper
         helper = new HelperClient();
@@ -330,6 +342,14 @@ public class Crafty extends JFrame {
 	    menuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/deop.png"))));
 	    menuItem.addActionListener(actionListener);
 	    activeUserPopup.add(menuItem);
+	    
+	    // Location
+        mapMenuItem = new JMenuItem(Crafty.UserActions.MAP);
+        mapMenuItem.setFont(menuFont);
+        mapMenuItem.setIcon(new ImageIcon(Toolkit.getDefaultToolkit().getImage(getClass().getResource("/com/aranai/crafty/resources/map.png"))));
+        mapMenuItem.addActionListener(actionListener);
+        mapMenuItem.setToolTipText("X: 0, Y: 0, Z: 0");
+        activeUserPopup.add(mapMenuItem);
 	    
 	    MouseListener popupListener = new ActiveUserPopupListener(this);
 	    activeUserList.addMouseListener(popupListener);
@@ -580,8 +600,6 @@ public class Crafty extends JFrame {
 	
 	public void startServer()
 	{
-		String[] args = this.args;
-		
 		final String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
         File currentJar = new File("craftbukkit.jar");
 
@@ -1073,5 +1091,69 @@ public class Crafty extends JFrame {
 			e.printStackTrace();
 			this.logMsg("ERROR: Failed to restart!");
 		}
+	}
+	
+	/*
+	 * Load properties
+	 */
+	public void loadProperties()
+	{
+	    prop = new Properties();
+	    
+        try {
+            prop.load(new FileInputStream("crafty.properties"));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+	}
+	
+	/*
+	 * Save properties
+	 */
+	public void saveProperties()
+	{
+	    try {
+            prop.store(new FileOutputStream("crafty.properties"), null);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+	}
+	
+	/*
+	 * Get player coordinates from the Helper
+	 */
+	public Location getPlayerLocation(String name)
+	{
+	    // Get coords
+        String response = helper.sendCommand(HelperCommands.GETPLAYERPOS, name);
+        
+        if(response != null)
+        {
+            String[] coords = response.split(",");
+            
+            try {
+                Location v = new Location(
+                        coords[0],
+                        Double.parseDouble(coords[1]),
+                        Double.parseDouble(coords[2]),
+                        Double.parseDouble(coords[3])
+                );
+                
+                return v;
+            }
+            catch(NumberFormatException e) {}
+        }
+        
+        return new Location("unknown", 0.0, 0.0, 0.0);
+	}
+	
+	/*
+	 * Get DynMap base url, default to localhost:8127
+	 */
+	public String getDynMapUrl()
+	{
+	    return prop.getProperty("dynmap-baseurl", "http://localhost:8123");
 	}
 }

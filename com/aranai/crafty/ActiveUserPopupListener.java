@@ -3,6 +3,8 @@ package com.aranai.crafty;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
+import com.aranai.crafty.Crafty.Location;
+
 class ActiveUserPopupListener extends MouseAdapter {
 	private Crafty c;
 	
@@ -27,6 +29,10 @@ class ActiveUserPopupListener extends MouseAdapter {
         		// Select the list item
         		c.activeUserList.setSelectedIndex(idx);
         		c.activeUserPopup.show(e.getComponent(), e.getX(), e.getY());
+        		
+        		// Update tooltip for map
+        		Location l = c.getPlayerLocation(c.activeUserList.getSelectedValue().toString());
+        		c.mapMenuItem.setToolTipText(l.toString());
         	}
         	else
         	{

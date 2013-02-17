@@ -1,9 +1,15 @@
 package com.aranai.crafty;
 
+import java.awt.Desktop;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import javax.swing.JMenuItem;
+
+import com.aranai.crafty.Crafty.Location;
 
 public class ActiveUserActionListener implements ActionListener {
 	private Crafty c;
@@ -65,5 +71,36 @@ public class ActiveUserActionListener implements ActionListener {
 			Crafty.queueConsoleCommand("deop "+player);
 			return;
 		}
+		
+		// View on DynMap
+        if(cmd.equals(Crafty.UserActions.MAP))
+        {
+            // Get coords
+            Location l = c.getPlayerLocation(player);
+            
+            // Get DynMap URL
+            String baseUrl = c.getDynMapUrl();
+            
+            // Build full URL
+            String url = baseUrl+"/?worldname="+l.world+"&mapname=flat&zoom=3&x="+l.x+"&y="+l.y+"&z="+l.z;
+            
+            // Launch browser window
+            if (Desktop.isDesktopSupported()) {
+                Desktop desktop = Desktop.getDesktop();
+                if (desktop.isSupported(Desktop.Action.BROWSE)) {
+                    try {
+                        desktop.browse(new URI(url));
+                    }
+                    catch(IOException ioe) {
+                        ioe.printStackTrace();
+                    }
+                    catch(URISyntaxException use) {
+                        use.printStackTrace();
+                    }
+                }
+            }
+            
+            return;
+        }
     }
 }
