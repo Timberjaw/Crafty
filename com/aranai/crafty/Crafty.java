@@ -23,7 +23,6 @@ import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.URISyntaxException;
-import java.security.Permission;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -425,29 +424,8 @@ public class Crafty extends JFrame {
 	            }
 	        }, 
 	        5000,
-	        3000
+	        10000
 		);
-	}
-	
-	/*
-	 * Methods for capturing system exit calls
-	 * Used to prevent the server from killing Crafty when the server stops
-	 * Code from: http://jroller.com/ethdsy/entry/disabling_system_exit
-	 */
-	
-	private static void forbidSystemExitCall() {
-	    final SecurityManager securityManager = new SecurityManager() {
-	    	public void checkPermission( Permission permission ) {
-	    	  	if(permission.getName().contains("exitVM")) {
-	        		throw new ExitTrappedException() ;
-	        	}
-	      	}
-		} ;
-		System.setSecurityManager( securityManager ) ;
-	}
-
-	private static void enableSystemExitCall() {
-		System.setSecurityManager( null ) ;
 	}
 	
 	// Get instance
@@ -539,23 +517,40 @@ public class Crafty extends JFrame {
 		}
 		
 		// Get RAM usage
-		String mem = Long.toString(PerformanceMonitor.memoryUsed()/1024/1024);
-		String memMax = Long.toString(PerformanceMonitor.memoryAvailable()/1024/1024);
+		Long mem = PerformanceMonitor.memoryUsed()/1024/1024;
+		Long memMax = PerformanceMonitor.memoryAvailable()/1024/1024;
 		
 		// Get thread count
 		int threads = PerformanceMonitor.threadsUsed();
 		
 		// Get CPU usage
-		String cpu = new DecimalFormat("#.##").format(pf.getCpuUsage());
+		double cpu = pf.getCpuUsage();
+		//String cpu = new DecimalFormat("#.##").format(pf.getCpuUsage());
 		
 		if(serverOn && helper.isActive) {
 			// Get CraftBukkit build
 			statusMsg.setText(helper.sendCommand(HelperCommands.GETVERSION));
+			
+			// Get Bukkit performance info
+			String response = helper.sendCommand(HelperCommands.GETPERFSTATS);
+			
+			if(response != null)
+			{
+			    String[] stats = response.split(":");
+			    try {
+    			    mem += Long.parseLong(stats[0]);
+    			    memMax += Long.parseLong(stats[1]);
+    			    cpu += Double.parseDouble(stats[2]);
+    			    threads += Integer.parseInt(stats[3]);
+			    } catch(NumberFormatException e) {}
+			}
 		}
+		
+		String cpuString = new DecimalFormat("#.##").format(cpu);
 		
 		perfMonText.setText(
 			"Memory Used: " + mem + "/" + memMax + "mb\n"
-			+"CPU: " + cpu + "%\n"
+			+"CPU: " + cpuString + "%\n"
 			+"Threads: " + threads + "\n"
 		);
 	}
@@ -674,9 +669,6 @@ public class Crafty extends JFrame {
 			        new java.util.TimerTask() {
 			            @Override
 			            public void run() {
-			
-							// Disable exit calls
-							Crafty.forbidSystemExitCall();
 							
 							// Stop the server
 							Crafty.queueConsoleCommand("stop");
@@ -757,9 +749,6 @@ public class Crafty extends JFrame {
 		{
 			this.logMsg("Exiting! Waiting for server to stop...");
 			
-			// Prevent server from killing application
-			Crafty.forbidSystemExitCall();
-			
 			Crafty.queueConsoleCommand("stop");
 			try {
 			    // Wait for Bukkit exit code
@@ -767,9 +756,6 @@ public class Crafty extends JFrame {
 			    
 			    // Save Crafty properties file
 			    this.saveProperties();
-				
-				// Re-enable system exit call and exit
-				Crafty.enableSystemExitCall();
 				
 				this.logMsg("Server has stopped. Exiting.");
 				System.exit(0);
