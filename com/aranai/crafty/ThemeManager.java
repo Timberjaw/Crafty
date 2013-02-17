@@ -14,19 +14,19 @@ public class ThemeManager {
 	
 	public void addTheme(Theme t)
 	{
-		this.themes.put(t.getName(), t);
+		this.themes.put(t.getName().toLowerCase(), t);
 	}
 	
 	public boolean themeAvailable(String name)
 	{
-		return this.themes.containsKey(name);
+		return this.themes.containsKey(name.toLowerCase());
 	}
 	
 	public Theme getTheme(String name)
 	{
 		if(this.themeAvailable(name))
 		{
-			return this.themes.get(name);
+			return this.themes.get(name.toLowerCase());
 		}
 		
 		return null;

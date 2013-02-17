@@ -762,7 +762,11 @@ public class Crafty extends JFrame {
 			
 			Crafty.queueConsoleCommand("stop");
 			try {
+			    // Wait for Bukkit exit code
 			    bukkit.waitFor();
+			    
+			    // Save Crafty properties file
+			    this.saveProperties();
 				
 				// Re-enable system exit call and exit
 				Crafty.enableSystemExitCall();
@@ -970,6 +974,7 @@ public class Crafty extends JFrame {
 	public void setTheme(String name)
 	{
 		tm.setCurrentTheme(name);
+		prop.setProperty("theme", name.toLowerCase());
 		this.refreshTheme();
 	}
 	
@@ -1031,7 +1036,7 @@ public class Crafty extends JFrame {
 		
 		tm.addTheme(altTheme);
 		
-		tm.setCurrentTheme("Default");
+		tm.setCurrentTheme(prop.getProperty("theme", "default"));
 	}
 	
 	/*
